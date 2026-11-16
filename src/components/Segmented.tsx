@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { colors } from '../theme';
+import { colors, radius, states, type } from '../theme';
 
 type Option<T> = { value: T; label: string };
 
@@ -22,7 +22,7 @@ export function Segmented<T extends string | number>({
   disabled,
   accessibilityLabel,
   trackColor = colors.track,
-  textColor = colors.textSoft,
+  textColor = states.unselectedText.color as string,
   style,
 }: Props<T>) {
   return (
@@ -83,23 +83,22 @@ export function ChipGroup<T extends string>({
 }
 
 const styles = StyleSheet.create({
-  track: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 24 },
-  dim: { opacity: 0.55 },
-  item: { flex: 1, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  itemOn: { backgroundColor: colors.sageDeep },
-  label: { fontSize: 15 },
-  labelOn: { color: colors.white, fontWeight: '500' },
-  chips: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  track: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: radius.pill },
+  dim: { opacity: 0.6 },
+  item: { flex: 1, height: 42, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  itemOn: { ...states.selected },
+  label: { ...type.segment },
+  labelOn: { ...states.selectedText },
+  chips: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 8 },
   chip: {
-    minHeight: 34,
+    minHeight: 36,
     paddingHorizontal: 14,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: '#E2DDD1',
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
+    ...states.unselected,
   },
-  chipOn: { backgroundColor: colors.sageMist, borderColor: colors.sage },
-  chipLabel: { fontSize: 13, color: '#5C5F52' },
-  chipLabelOn: { color: colors.text, fontWeight: '500' },
+  chipOn: { ...states.chipSelected },
+  chipLabel: { ...type.small, ...states.unselectedText },
+  chipLabelOn: { ...states.chipSelectedText },
 });

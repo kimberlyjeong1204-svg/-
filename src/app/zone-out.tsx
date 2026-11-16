@@ -12,6 +12,7 @@ import { formatTime, useSession } from '../lib/useSession';
 import { KEYS, isBoolean, usePersistentState } from '../lib/storage';
 import { goHome } from '../lib/navigation';
 import { useAmbience, useSoundChoice } from '../audio/useAmbience';
+import { type } from '../theme';
 
 const INK = '#4A4F42';
 
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
   spacer: { flex: 1 },
   bottom: { alignItems: 'center', gap: 20, paddingBottom: 72 },
   timeBtn: { minWidth: 140, minHeight: 52, alignItems: 'center', justifyContent: 'center' },
-  musicNote: { fontSize: 12.5, color: INK, opacity: 0.85, marginBottom: -8 },
-  time: { fontSize: 30, letterSpacing: 1, color: INK, fontVariant: ['tabular-nums'] },
+  musicNote: { ...type.caption, color: INK, marginBottom: -8 },
+  time: { ...type.timer, color: INK },
   timeHidden: { opacity: 0.45 },
 });

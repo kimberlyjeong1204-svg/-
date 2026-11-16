@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { PauseIcon, PlayIcon, StopIcon } from './icons';
-import { HIT, colors } from '../theme';
+import { HIT, colors, radius, shadow } from '../theme';
 import type { SessionPhase } from '../lib/useSession';
 
 type Props = {
@@ -49,11 +49,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.sageDeep,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.sageDeep,
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
+    ...shadow.primary,
   },
-  stop: { width: HIT, height: HIT, borderRadius: HIT / 2, alignItems: 'center', justifyContent: 'center' },
+  stop: { width: HIT, height: HIT, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
 });

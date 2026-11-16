@@ -1,5 +1,5 @@
 import { Platform, StyleSheet, Text } from 'react-native';
-import { colors } from '../theme';
+import { colors, type } from '../theme';
 
 /**
  * 알림을 실제로 보낼 수 있는지 솔직하게 안내합니다.
@@ -15,5 +15,5 @@ export function AlarmNote() {
 }
 
 const styles = StyleSheet.create({
-  note: { marginHorizontal: 4, fontSize: 12.5, lineHeight: 19, color: colors.textMuted },
+  note: { marginHorizontal: 4, ...type.caption, color: colors.textMuted },
 });

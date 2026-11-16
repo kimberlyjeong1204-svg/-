@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CheckIcon, MusicIcon, SoundOffIcon, SoundOnIcon } from './icons';
-import { HIT, colors } from '../theme';
+import { HIT, colors, radius, shadow, states, type } from '../theme';
 import { SOUND_OPTIONS, isAmbience, soundLabel, type SoundKey } from '../audio/sounds';
 
 type Props = {
@@ -57,7 +57,7 @@ export function SoundPicker({ value, onChange, color = colors.textSoft }: Props)
                   }}
                   style={({ pressed }) => [styles.option, selected && styles.optionOn, pressed && styles.optionPressed]}
                 >
-                  <Text style={styles.optionLabel}>{o.label}</Text>
+                  <Text style={[styles.optionLabel, selected && styles.optionLabelOn]}>{o.label}</Text>
                   {selected && <CheckIcon />}
                 </Pressable>
               </View>
@@ -77,26 +77,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 228,
     padding: 6,
-    borderRadius: 18,
+    borderRadius: radius.lg,
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
-    shadowColor: '#5A503C',
-    shadowOpacity: 0.14,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
+    ...shadow.raised,
   },
   option: {
     minHeight: HIT,
-    borderRadius: 12,
+    borderRadius: radius.sm,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  optionOn: { backgroundColor: '#EEF1EA' },
-  optionPressed: { backgroundColor: '#F3F0E8' },
-  divider: { height: 1, backgroundColor: '#EFEAE0', marginHorizontal: 8, marginVertical: 4 },
-  optionLabel: { fontSize: 15, color: colors.text },
-  note: { marginHorizontal: 12, marginVertical: 6, fontSize: 11.5, lineHeight: 17, color: colors.textMuted },
+  optionOn: { ...states.chipSelected },
+  optionPressed: { backgroundColor: colors.track },
+  divider: { height: 1, backgroundColor: colors.line, marginHorizontal: 8, marginVertical: 4 },
+  optionLabel: { ...type.bodyStrong, color: colors.text },
+  optionLabelOn: { ...states.chipSelectedText },
+  note: { marginHorizontal: 12, marginVertical: 8, ...type.small, fontSize: 13, lineHeight: 19, color: colors.textMuted },
 });

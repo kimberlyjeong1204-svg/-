@@ -91,6 +91,13 @@ modules/other-audio/  다른 앱 음악 재생 여부를 알려 주는 iOS 모�
 assets/sounds/    환경음 파일과 출처 기록(CREDITS.md)
 ```
 
+## 디자인
+
+- 디자인 규칙(글꼴·색·둥글기·그림자·선택 상태): [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md), 값은 `src/theme.ts`
+- 아이폰에서 실제 글자 크기 확인: 웹앱 주소 뒤에 `/design`
+- 숲 멍때리기 제안: [docs/FOREST_PLAN.md](docs/FOREST_PLAN.md)
+- 글꼴: 고운바탕(로고), Pretendard(그 밖) — 모두 SIL Open Font License 1.1
+
 ## 환경음 출처
 
 [assets/sounds/CREDITS.md](assets/sounds/CREDITS.md)를 참고하세요. 두 음원 모두 Mixkit Sound Effects Free License로 제공되며, 앱 안의 배경음으로만 사용합니다.

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View, type ScrollViewInstance, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { HIT, colors } from '../theme';
+import { HIT, colors, pretendard, radius, shadow, states, type } from '../theme';
 
 type Props = {
   visible: boolean;
@@ -112,21 +112,22 @@ const styles = StyleSheet.create({
   sheet: {
     position: 'absolute',
     bottom: 0,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
     backgroundColor: colors.ivory,
+    ...shadow.raised,
   },
   header: { height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },
   headerBtn: { minWidth: 64, minHeight: HIT, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 16, fontWeight: '500', color: colors.text },
-  cancel: { fontSize: 15, color: colors.textMuted },
-  done: { fontSize: 15, fontWeight: '600', color: colors.sageDeep },
+  title: { ...type.bodyStrong, fontSize: 17, color: colors.text },
+  cancel: { ...type.bodyStrong, color: colors.textMuted },
+  done: { ...type.bodyStrong, ...pretendard('600'), color: colors.sageDeep },
   columns: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 24, paddingBottom: 8 },
   column: { height: ROW * 5, width: 96, flexGrow: 0 },
   columnContent: { paddingVertical: 4 },
-  colon: { fontSize: 22, color: colors.textMuted },
-  item: { height: ROW, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  itemOn: { backgroundColor: colors.sageDeep },
-  itemText: { fontSize: 20, color: colors.text, fontVariant: ['tabular-nums'] },
-  itemTextOn: { color: colors.white, fontWeight: '500' },
+  colon: { ...type.number, fontSize: 22, color: colors.textMuted },
+  item: { height: ROW, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  itemOn: { ...states.selected },
+  itemText: { ...type.number, fontSize: 20, lineHeight: 26, color: colors.text },
+  itemTextOn: { ...states.selectedText },
 });

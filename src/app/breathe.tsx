@@ -12,7 +12,7 @@ import { formatTime, useSession } from '../lib/useSession';
 import { KEYS, isOneOf, usePersistentState } from '../lib/storage';
 import { goHome } from '../lib/navigation';
 import { useAmbience, useSoundChoice } from '../audio/useAmbience';
-import { colors, fonts } from '../theme';
+import { colors, radius, shadow, type } from '../theme';
 
 const DURATIONS = [
   { value: 30, label: '30초' },
@@ -132,14 +132,14 @@ const styles = StyleSheet.create({
   stage: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 190 },
   cueWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   // 원이 가장 작을 때도 안에 들어가도록 폭을 제한하고, 굵기를 살짝 올려 읽기 쉽게 합니다.
-  cue: { maxWidth: 200, textAlign: 'center', fontSize: 17, lineHeight: 27, fontWeight: '500', color: colors.text },
-  cueSmall: { maxWidth: 150, fontSize: 15, lineHeight: 23 },
-  doneText: { fontFamily: fonts.displayRegular, fontSize: 24, lineHeight: 34, color: colors.text },
+  cue: { maxWidth: 210, textAlign: 'center', ...type.cue, color: colors.text },
+  cueSmall: { maxWidth: 170, ...type.cueSmall },
+  doneText: { ...type.closing, color: colors.text },
   bottom: { alignItems: 'center', gap: 20, paddingBottom: 16 },
-  musicNote: { fontSize: 12.5, color: colors.textMuted, marginBottom: -8 },
-  time: { fontSize: 30, letterSpacing: 1, color: colors.text, fontVariant: ['tabular-nums'] },
-  guide: { marginTop: 8, paddingHorizontal: 32, textAlign: 'center', fontSize: 12.5, lineHeight: 21, color: colors.textMuted },
+  musicNote: { ...type.caption, color: colors.textMuted, marginBottom: -8 },
+  time: { ...type.timer, color: colors.text },
+  guide: { marginTop: 6, paddingHorizontal: 28, textAlign: 'center', ...type.caption, color: colors.textMuted },
   bottomDone: { alignItems: 'center', paddingBottom: 48 },
-  homeBtn: { minHeight: 44, paddingHorizontal: 22, borderRadius: 22, backgroundColor: '#EFEBE2', justifyContent: 'center' },
-  homeLabel: { fontSize: 15, color: colors.textSoft },
+  homeBtn: { minHeight: 48, paddingHorizontal: 26, borderRadius: radius.pill, backgroundColor: colors.secondary, justifyContent: 'center', ...shadow.soft },
+  homeLabel: { ...type.button, color: colors.text },
 });

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import { HIT, colors } from '../theme';
+import { HIT, colors, radius, shadow, states, type } from '../theme';
 import { DAY_LABELS, type Days } from '../lib/schedule';
 import { ChevronIcon } from './icons';
 
@@ -94,32 +94,39 @@ export function Dimmable({ enabled, children }: { enabled: boolean; children: Re
 }
 
 const styles = StyleSheet.create({
-  switch: { width: 52, height: 32, borderRadius: 16, backgroundColor: '#D9D4C8', padding: 3, justifyContent: 'center' },
+  switch: { width: 52, height: 32, borderRadius: radius.pill, backgroundColor: '#CFC9BC', padding: 3, justifyContent: 'center' },
   switchOn: { backgroundColor: colors.sageDeep },
   knob: {
     width: 26,
     height: 26,
-    borderRadius: 13,
+    borderRadius: radius.pill,
     backgroundColor: colors.white,
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
+    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.18)',
   },
   knobOn: { transform: [{ translateX: 20 }] },
-  card: { borderRadius: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
-  label: { marginHorizontal: 4, fontSize: 13, fontWeight: '500', color: '#5C5F52' },
+  // 카드: 테두리 없이 아주 약한 그림자로만 구분
+  card: { borderRadius: radius.md, backgroundColor: colors.card, ...shadow.soft },
+  label: { marginHorizontal: 4, ...type.sectionLabel, color: colors.textSoft },
   toggleRow: { minHeight: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  toggleLabel: { fontSize: 16, fontWeight: '500', color: colors.text },
+  toggleLabel: { ...type.bodyStrong, color: colors.text },
   days: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
-  day: { flex: 1, maxWidth: HIT, aspectRatio: 1, minHeight: 36, borderRadius: 22, backgroundColor: colors.track, alignItems: 'center', justifyContent: 'center' },
-  dayOn: { backgroundColor: colors.sageDeep },
-  dayText: { fontSize: 14, color: colors.textSoft },
-  dayTextOn: { color: colors.white, fontWeight: '500' },
-  timeBtn: { flex: 1, minHeight: 52, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  timeLabel: { fontSize: 14, color: colors.textMuted },
+  day: {
+    flex: 1,
+    maxWidth: HIT,
+    aspectRatio: 1,
+    minHeight: 36,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...states.unselected,
+  },
+  dayOn: { ...states.selected },
+  dayText: { ...type.captionStrong, ...states.unselectedText },
+  dayTextOn: { ...states.selectedText },
+  timeBtn: { flex: 1, minHeight: 54, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  timeLabel: { ...type.caption, fontSize: 15, color: colors.textMuted },
   timeValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  timeValue: { fontSize: 16, color: colors.text, fontVariant: ['tabular-nums'] },
+  timeValue: { ...type.number, color: colors.text },
   dimmable: { gap: 18 },
-  dimmed: { opacity: 0.42 },
+  dimmed: { opacity: states.disabledOpacity },
 });

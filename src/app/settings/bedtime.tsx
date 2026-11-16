@@ -8,7 +8,7 @@ import { TimePickerSheet } from '../../components/TimePickerSheet';
 import { AlarmNote } from '../../components/AlarmNote';
 import { useBedtimeSettings } from '../../lib/alarmSettings';
 import { BEDTIME_MESSAGE, formatHM } from '../../lib/schedule';
-import { colors } from '../../theme';
+import { colors, pretendard, radius, type } from '../../theme';
 
 export default function BedtimeSettings() {
   const [s, setS] = useBedtimeSettings();
@@ -79,11 +79,11 @@ const styles = StyleSheet.create({
   section: { gap: 8 },
   timeCard: { flexDirection: 'row' },
   preview: { marginTop: 10 },
-  notif: { padding: 14, borderRadius: 20, backgroundColor: '#EFEBE2', flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  notif: { padding: 14, borderRadius: radius.md, backgroundColor: colors.track, flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   glyph: { width: 40, height: 40, borderRadius: 10, overflow: 'hidden', backgroundColor: '#F8F5EE' },
   notifText: { flex: 1, gap: 3 },
   notifTop: { flexDirection: 'row', justifyContent: 'space-between' },
-  notifApp: { fontSize: 14, fontWeight: '600', color: colors.text },
-  notifTime: { fontSize: 12, color: colors.textMuted },
-  notifBody: { fontSize: 14, lineHeight: 21, color: colors.text },
+  notifApp: { ...type.caption, ...pretendard('600'), color: colors.text },
+  notifTime: { ...type.small, color: colors.textMuted },
+  notifBody: { ...type.caption, fontSize: 15, lineHeight: 22, color: colors.text },
 });

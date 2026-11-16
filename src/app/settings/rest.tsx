@@ -9,7 +9,7 @@ import { AlarmNote } from '../../components/AlarmNote';
 import { BreathIcon, CheckboxIcon, DropIcon, LeafIcon, StretchIcon } from '../../components/icons';
 import { useRestSettings } from '../../lib/alarmSettings';
 import { REST_PROBLEM_TEXT, REST_TYPES, formatHM, planRest, type IntervalHours, type RestType } from '../../lib/schedule';
-import { colors } from '../../theme';
+import { colors, type } from '../../theme';
 
 const TYPE_ICON: Record<RestType, ReactNode> = {
   breath: <BreathIcon color="#5C6B50" />,
@@ -114,14 +114,14 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40, gap: 18 },
   section: { gap: 8 },
   typeRow: { minHeight: 60, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  rowBorder: { borderTopWidth: 1, borderTopColor: '#EFEAE0' },
-  pressed: { backgroundColor: '#F6F2EA' },
+  rowBorder: { borderTopWidth: 1, borderTopColor: colors.line },
+  pressed: { backgroundColor: colors.track },
   typeIcon: { width: 26, alignItems: 'center' },
   typeText: { flex: 1, gap: 2 },
-  typeName: { fontSize: 15, fontWeight: '500', color: colors.text },
-  typeMsg: { fontSize: 12.5, color: colors.textMuted },
+  typeName: { ...type.bodyStrong, color: colors.text },
+  typeMsg: { ...type.caption, color: colors.textMuted },
   timeCard: { flexDirection: 'row', alignItems: 'center' },
   vDivider: { width: 1, height: 26, backgroundColor: colors.line },
-  summary: { marginHorizontal: 4, fontSize: 13, lineHeight: 20, color: colors.textMuted },
-  problem: { color: '#8A5A3C' },
+  summary: { marginHorizontal: 4, ...type.caption, color: colors.textMuted },
+  problem: { color: colors.caution },
 });

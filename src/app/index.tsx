@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HomeBackdrop } from '../components/HomeBackdrop';
 import { BreathIcon, CupIcon, GearIcon } from '../components/icons';
-import { HIT, colors, fonts } from '../theme';
+import { HIT, colors, fonts, radius, shadow, type } from '../theme';
 
 export default function Home() {
   // 높이가 낮은 휴대폰(아이폰 SE 등)에서는 제목·버튼을 위로 당겨 아래 그림과 겹치지 않게 합니다.
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ivory },
   safe: { flex: 1 },
   topBar: { height: 56, alignItems: 'flex-end', justifyContent: 'center', paddingHorizontal: 20 },
-  gear: { width: HIT, height: HIT, borderRadius: HIT / 2, alignItems: 'center', justifyContent: 'center' },
+  gear: { width: HIT, height: HIT, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.5 },
   titleBlock: { marginTop: '18%', alignItems: 'center', gap: 22 },
   titleBlockCompact: { marginTop: 8, gap: 14 },
@@ -55,29 +55,17 @@ const styles = StyleSheet.create({
   slogan: { fontFamily: fonts.displayRegular, fontSize: 18, lineHeight: 30, color: colors.textSoft, textAlign: 'center' },
   buttons: { marginTop: 56, paddingHorizontal: 44, gap: 16 },
   btn: {
-    height: 64,
-    borderRadius: 32,
+    height: 62,
+    borderRadius: radius.pill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
   },
-  btnPrimary: {
-    backgroundColor: colors.sageDeep,
-    shadowColor: colors.sageDeep,
-    shadowOpacity: 0.22,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-  },
-  btnSecondary: {
-    backgroundColor: '#FBF8F1',
-    borderWidth: 1,
-    borderColor: colors.beige,
-    shadowColor: '#786446',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-  },
+  // 메인 버튼: 테두리 없이 짙은 세이지
+  btnPrimary: { backgroundColor: colors.sageDeep, ...shadow.primary },
+  // 보조 버튼: 테두리 대신 아주 약한 그림자
+  btnSecondary: { backgroundColor: colors.secondary, ...shadow.soft },
   btnPressed: { transform: [{ scale: 0.98 }], opacity: 0.92 },
-  btnLabel: { fontSize: 18, fontWeight: '500', color: colors.text },
+  btnLabel: { ...type.button, color: colors.text },
 });

@@ -12,7 +12,18 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 registerServiceWorker();
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({ GowunBatang_400Regular, GowunBatang_700Bold });
+  // 웹은 public/fonts/pretendard의 분할 글꼴(CSS)로 필요한 글자만 받습니다. 앱은 글꼴 파일을 함께 넣습니다.
+  const [loaded, error] = useFonts({
+    GowunBatang_400Regular,
+    GowunBatang_700Bold,
+    ...(Platform.OS === 'web'
+      ? {}
+      : {
+          'Pretendard-Regular': require('../../assets/fonts/Pretendard-Regular.otf'),
+          'Pretendard-Medium': require('../../assets/fonts/Pretendard-Medium.otf'),
+          'Pretendard-SemiBold': require('../../assets/fonts/Pretendard-SemiBold.otf'),
+        }),
+  });
 
   useEffect(() => {
     // 글꼴을 못 불러와도 시스템 글꼴로 앱이 열립니다.

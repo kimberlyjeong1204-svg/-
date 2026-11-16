@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { BreathIcon, ChevronIcon, MoonIcon } from '../../components/icons';
-import { colors } from '../../theme';
+import { colors, radius, shadow, type } from '../../theme';
 import { useBedtimeSettings, useRestSettings } from '../../lib/alarmSettings';
 import { bedtimeSummary, restSummary } from '../../lib/schedule';
 
@@ -32,7 +32,7 @@ function Row({ href, title, status, icon, iconBg }: { href: Href; title: string;
       onPress={() => router.push(href)}
       accessibilityRole="button"
       accessibilityLabel={`${title}, ${status}`}
-      style={({ pressed }) => [styles.row, pressed && { backgroundColor: '#F6F2EA' }]}
+      style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.track }]}
     >
       <View style={[styles.iconBox, { backgroundColor: iconBg }]}>{icon}</View>
       <View style={styles.rowText}>
@@ -47,12 +47,12 @@ function Row({ href, title, status, icon, iconBg }: { href: Href; title: string;
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ivory },
   body: { paddingHorizontal: 20, paddingTop: 24, gap: 14 },
-  card: { borderRadius: 20, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, overflow: 'hidden' },
-  row: { minHeight: 76, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  iconBox: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  card: { borderRadius: radius.md, backgroundColor: colors.card, ...shadow.soft },
+  row: { minHeight: 78, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.md },
+  iconBox: { width: 40, height: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   rowText: { flex: 1, gap: 3 },
-  rowTitle: { fontSize: 16, fontWeight: '500', color: colors.text },
-  rowStatus: { fontSize: 13, color: colors.textMuted },
-  divider: { height: 1, backgroundColor: '#EFEAE0', marginLeft: 72 },
-  note: { marginHorizontal: 6, marginTop: 4, fontSize: 13, lineHeight: 21, color: colors.textMuted },
+  rowTitle: { ...type.bodyStrong, fontSize: 17, color: colors.text },
+  rowStatus: { ...type.caption, color: colors.textMuted },
+  divider: { height: 1, backgroundColor: colors.line, marginLeft: 72 },
+  note: { marginHorizontal: 6, marginTop: 4, ...type.caption, color: colors.textMuted },
 });

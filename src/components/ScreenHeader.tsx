@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BackIcon } from './icons';
-import { HIT, colors } from '../theme';
+import { HIT, colors, type } from '../theme';
 import { goBack } from '../lib/navigation';
 
 type Props = {
@@ -52,5 +52,5 @@ const styles = StyleSheet.create({
   left: { left: 12 },
   right: { right: 12 },
   pressed: { opacity: 0.5 },
-  title: { fontSize: 18, fontWeight: '500' },
+  title: { ...type.title },
 });
