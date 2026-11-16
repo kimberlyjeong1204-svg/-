@@ -9,6 +9,8 @@ export const KEYS = {
   sound: 'shimpyo.sound',
   breathRhythm: 'shimpyo.breathRhythm',
   zoneOutHideTime: 'shimpyo.zoneOutHideTime',
+  restAlarm: 'shimpyo.restAlarm',
+  bedtimeAlarm: 'shimpyo.bedtimeAlarm',
 } as const;
 
 export async function loadValue<T>(key: string, fallback: T, isValid: (v: unknown) => v is T): Promise<T> {
@@ -30,27 +32,46 @@ export async function saveValue<T>(key: string, value: T): Promise<void> {
   }
 }
 
+// 같은 키를 쓰는 화면끼리 값을 바로 맞추기 위한 메모리 사본
+const cache = new Map<string, unknown>();
+const listeners = new Map<string, Set<(v: unknown) => void>>();
+
+function publish(key: string, value: unknown) {
+  cache.set(key, value);
+  listeners.get(key)?.forEach((fn) => fn(value));
+}
+
 /**
  * 기기에 저장되는 상태. 처음에는 기본값으로 그려지고, 저장된 값을 읽으면 바뀝니다.
+ * 같은 키를 쓰는 다른 화면도 함께 바뀝니다.
  */
 export function usePersistentState<T>(key: string, fallback: T, isValid: (v: unknown) => v is T) {
-  const [value, setValue] = useState<T>(fallback);
+  const [value, setValue] = useState<T>(() => (cache.has(key) ? (cache.get(key) as T) : fallback));
 
   useEffect(() => {
     let alive = true;
-    loadValue(key, fallback, isValid).then((v) => {
-      if (alive) setValue(v);
-    });
+    const fn = (v: unknown) => {
+      if (alive) setValue(v as T);
+    };
+    let set = listeners.get(key);
+    if (!set) listeners.set(key, (set = new Set()));
+    set.add(fn);
+    if (!cache.has(key)) {
+      loadValue(key, fallback, isValid).then((v) => {
+        if (!cache.has(key)) publish(key, v);
+      });
+    }
     return () => {
       alive = false;
+      set.delete(fn);
     };
-    // 처음 한 번만 읽습니다.
+    // 키마다 한 번만 읽습니다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
   const update = useCallback(
     (next: T) => {
-      setValue(next);
+      publish(key, next);
       void saveValue(key, next);
     },
     [key],

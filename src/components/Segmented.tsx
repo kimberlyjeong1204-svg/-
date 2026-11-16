@@ -38,6 +38,7 @@ export function Segmented<T extends string | number>({
             key={String(o.value)}
             accessibilityRole="radio"
             accessibilityState={{ checked: on, disabled }}
+            aria-checked={on}
             disabled={disabled}
             onPress={() => onChange(o.value)}
             style={[styles.item, on && styles.itemOn]}
@@ -67,6 +68,7 @@ export function ChipGroup<T extends string>({
             key={o.value}
             accessibilityRole="radio"
             accessibilityState={{ checked: on, disabled }}
+            aria-checked={on}
             disabled={disabled}
             onPress={() => onChange(o.value)}
             hitSlop={{ top: 5, bottom: 5 }}

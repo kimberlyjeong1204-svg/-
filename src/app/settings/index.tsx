@@ -5,16 +5,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { BreathIcon, ChevronIcon, MoonIcon } from '../../components/icons';
 import { colors } from '../../theme';
+import { useBedtimeSettings, useRestSettings } from '../../lib/alarmSettings';
+import { bedtimeSummary, restSummary } from '../../lib/schedule';
 
 export default function SettingsHub() {
+  const [rest] = useRestSettings();
+  const [bedtime] = useBedtimeSettings();
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <ScreenHeader title="알림 설정" backLabel="홈으로" />
       <View style={styles.body}>
         <View style={styles.card}>
-          <Row href="/settings/rest" title="휴식 알림" status="꺼짐" icon={<BreathIcon size={22} color="#4F6142" />} iconBg={colors.sageMist} />
+          <Row href="/settings/rest" title="휴식 알림" status={restSummary(rest)} icon={<BreathIcon size={22} color="#4F6142" />} iconBg={colors.sageMist} />
           <View style={styles.divider} />
-          <Row href="/settings/bedtime" title="취침 알림" status="꺼짐" icon={<MoonIcon color="#7A6650" />} iconBg="#EFE7DC" />
+          <Row href="/settings/bedtime" title="취침 알림" status={bedtimeSummary(bedtime)} icon={<MoonIcon color="#7A6650" />} iconBg="#EFE7DC" />
         </View>
         <Text style={styles.note}>{'알림은 소리 없이 조용히 도착해요.\n언제든 여기서 끌 수 있어요.'}</Text>
       </View>

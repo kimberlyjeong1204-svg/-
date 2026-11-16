@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CheckIcon, MusicIcon, SoundOffIcon, SoundOnIcon } from './icons';
 import { HIT, colors } from '../theme';
@@ -15,6 +15,9 @@ type Props = {
 export function SoundPicker({ value, onChange, color = colors.textSoft }: Props) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
+  // 넓은 화면(웹)에서는 가운데 앱 영역의 오른쪽 위에 맞춥니다.
+  const { width } = useWindowDimensions();
+  const right = Math.max(16, (width - 520) / 2 + 16);
   const icon =
     value === 'myMusic' ? <MusicIcon color={color} /> : isAmbience(value) ? <SoundOnIcon color={color} /> : <SoundOffIcon color={color} />;
   const note =
@@ -38,7 +41,7 @@ export function SoundPicker({ value, onChange, color = colors.textSoft }: Props)
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} accessibilityLabel="소리 선택 닫기" />
-        <View style={[styles.menu, { top: insets.top + 50 }]} accessibilityRole="menu">
+        <View style={[styles.menu, { top: insets.top + 50, right }]} accessibilityRole="menu">
           {SOUND_OPTIONS.map((o) => {
             const selected = o.key === value;
             return (
@@ -47,6 +50,7 @@ export function SoundPicker({ value, onChange, color = colors.textSoft }: Props)
                 <Pressable
                   accessibilityRole="menuitem"
                   accessibilityState={{ checked: selected }}
+                  aria-checked={selected}
                   onPress={() => {
                     onChange(o.key);
                     setOpen(false);
@@ -71,7 +75,6 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.5 },
   menu: {
     position: 'absolute',
-    right: 16,
     width: 228,
     padding: 6,
     borderRadius: 18,

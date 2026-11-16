@@ -3,10 +3,13 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { GowunBatang_400Regular, GowunBatang_700Bold, useFonts } from '@expo-google-fonts/gowun-batang';
+import { Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { registerServiceWorker } from '../lib/pwa';
 import { colors } from '../theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+registerServiceWorker();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({ GowunBatang_400Regular, GowunBatang_700Bold });
@@ -21,13 +24,23 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.ivory },
-          animation: 'fade',
-        }}
-      />
+      {/* 태블릿·PC처럼 넓은 화면에서는 휴대폰 폭으로 가운데에 보여 줍니다. */}
+      <View style={styles.outer}>
+        <View style={styles.inner}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.ivory },
+              animation: 'fade',
+            }}
+          />
+        </View>
+      </View>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  outer: { flex: 1, backgroundColor: Platform.OS === 'web' ? '#EFEBE2' : colors.ivory, alignItems: 'center' },
+  inner: { flex: 1, width: '100%', maxWidth: 520, backgroundColor: colors.ivory, overflow: 'hidden' },
+});

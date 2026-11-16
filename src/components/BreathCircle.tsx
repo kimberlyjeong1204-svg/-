@@ -4,7 +4,7 @@ import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { MIN_SCALE, breathFrame, type Rhythm } from '../lib/breath';
 import { colors } from '../theme';
 
-const SIZE = 290;
+const BASE = 290;
 
 /** 아이폰의 「동작 줄이기」 설정을 따릅니다. */
 export function useReduceMotion() {
@@ -68,18 +68,25 @@ export function useBreathAnimation(rhythm: Rhythm, reduceMotion: boolean) {
 
 type Values = ReturnType<typeof useBreathAnimation>['values'];
 
-export function BreathCircle({ values }: { values: Values }) {
+/** size: 원의 가장 큰 지름(px). 화면 높이에 맞춰 바깥에서 정합니다. */
+export function BreathCircle({ values, size = BASE }: { values: Values; size?: number }) {
   return (
     <Animated.View
       pointerEvents="none"
       importantForAccessibility="no-hide-descendants"
       accessibilityElementsHidden
-      style={[styles.wrap, { opacity: Animated.multiply(values.visible, values.glow), transform: [{ scale: values.scale }] }]}
+      style={[
+        styles.wrap,
+        { width: size, height: size, opacity: Animated.multiply(values.visible, values.glow), transform: [{ scale: values.scale }] },
+      ]}
     >
       <Animated.View
-        style={[styles.halo, { opacity: values.haloOpacity, transform: [{ scale: values.haloScale }] }]}
+        style={[
+          styles.halo,
+          { borderRadius: (size + 20) / 2, opacity: values.haloOpacity, transform: [{ scale: values.haloScale }] },
+        ]}
       />
-      <Svg width={SIZE} height={SIZE} viewBox="0 0 290 290">
+      <Svg width={size} height={size} viewBox="0 0 290 290">
         <Defs>
           <RadialGradient id="core" cx="50%" cy="45%" r="50%">
             <Stop offset="0" stopColor={colors.sageLight} stopOpacity={0.9} />
@@ -97,14 +104,13 @@ export function BreathCircle({ values }: { values: Values }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' },
+  wrap: { alignItems: 'center', justifyContent: 'center' },
   halo: {
     position: 'absolute',
     top: -10,
     left: -10,
     right: -10,
     bottom: -10,
-    borderRadius: (SIZE + 20) / 2,
     borderWidth: 1.5,
     borderColor: 'rgba(168,184,154,0.7)',
   },

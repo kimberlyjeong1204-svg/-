@@ -6,7 +6,7 @@ import Svg, { Defs, Ellipse, G, Path, RadialGradient, Rect, Stop } from 'react-n
  * 홈 배경: 직접 그린 그래픽 (외부 이미지 없음)
  * - 창가 빛, 흐린 잎 그림자, 탁자 위 컵과 책
  */
-export function HomeBackdrop() {
+export function HomeBackdrop({ compact = false }: { compact?: boolean }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <LinearGradient colors={['#F8F6EF', '#F5F0E6', '#EDE3D4']} locations={[0, 0.62, 1]} style={StyleSheet.absoluteFill} />
@@ -35,10 +35,16 @@ export function HomeBackdrop() {
         </G>
       </Svg>
 
-      <View style={styles.table}>
+      <View style={[styles.table, compact && { height: 70 }]}>
         <LinearGradient colors={['#E6DAC8', '#DCCDB7']} style={StyleSheet.absoluteFill} />
       </View>
-      <Svg width={390} height={150} viewBox="0 0 390 150" style={styles.objects}>
+      <Svg
+        width="100%"
+        height={compact ? 100 : 150}
+        viewBox="0 0 390 150"
+        preserveAspectRatio="xMidYMax meet"
+        style={[styles.objects, compact && { bottom: 40 }]}
+      >
         <Ellipse cx={96} cy={138} rx={56} ry={7} fill="#C9B79E" opacity={0.55} />
         <Path d="M58 64 h70 v44 a26 26 0 0 1-26 26 h-18 a26 26 0 0 1-26-26 z" fill="#F3ECE0" stroke="#B8A68C" strokeWidth={1.5} />
         <Path d="M128 78 h8 a14 14 0 0 1 0 28 h-8" fill="none" stroke="#B8A68C" strokeWidth={5} strokeLinecap="round" />
@@ -55,5 +61,5 @@ const styles = StyleSheet.create({
   light: { position: 'absolute', right: -80, top: -60 },
   leaves: { position: 'absolute', left: -46, top: 120 },
   table: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 120 },
-  objects: { position: 'absolute', left: 0, bottom: 70 },
+  objects: { position: 'absolute', left: 0, right: 0, bottom: 70 },
 });

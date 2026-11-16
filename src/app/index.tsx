@@ -1,14 +1,17 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HomeBackdrop } from '../components/HomeBackdrop';
 import { BreathIcon, CupIcon, GearIcon } from '../components/icons';
 import { HIT, colors, fonts } from '../theme';
 
 export default function Home() {
+  // 높이가 낮은 휴대폰(아이폰 SE 등)에서는 제목·버튼을 위로 당겨 아래 그림과 겹치지 않게 합니다.
+  const { height } = useWindowDimensions();
+  const compact = height < 700;
   return (
     <View style={styles.root}>
-      <HomeBackdrop />
+      <HomeBackdrop compact={compact} />
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.topBar}>
           <Pressable onPress={() => router.push('/settings')} accessibilityRole="button" accessibilityLabel="알림 설정" style={({ pressed }) => [styles.gear, pressed && styles.pressed]}>
@@ -16,14 +19,14 @@ export default function Home() {
           </Pressable>
         </View>
 
-        <View style={styles.titleBlock}>
-          <Text style={styles.title} accessibilityRole="header">
+        <View style={[styles.titleBlock, compact && styles.titleBlockCompact]}>
+          <Text style={[styles.title, compact && styles.titleCompact]} accessibilityRole="header">
             쉼표.
           </Text>
           <Text style={styles.slogan}>{'몰입하는 일상에,\n잠깐의 여유.'}</Text>
         </View>
 
-        <View style={styles.buttons}>
+        <View style={[styles.buttons, compact && styles.buttonsCompact]}>
           <Pressable onPress={() => router.push('/breathe')} accessibilityRole="button" style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.btnPressed]}>
             <BreathIcon color={colors.white} />
             <Text style={[styles.btnLabel, { color: colors.white }]}>숨 고르기</Text>
@@ -45,6 +48,9 @@ const styles = StyleSheet.create({
   gear: { width: HIT, height: HIT, borderRadius: HIT / 2, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.5 },
   titleBlock: { marginTop: '18%', alignItems: 'center', gap: 22 },
+  titleBlockCompact: { marginTop: 8, gap: 14 },
+  titleCompact: { fontSize: 50, lineHeight: 60 },
+  buttonsCompact: { marginTop: 32 },
   title: { fontFamily: fonts.display, fontSize: 60, lineHeight: 70, color: colors.text, letterSpacing: -1 },
   slogan: { fontFamily: fonts.displayRegular, fontSize: 18, lineHeight: 30, color: colors.textSoft, textAlign: 'center' },
   buttons: { marginTop: 56, paddingHorizontal: 44, gap: 16 },

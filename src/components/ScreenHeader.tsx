@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BackIcon } from './icons';
 import { HIT, colors } from '../theme';
@@ -9,13 +10,15 @@ type Props = {
   backLabel?: string;
   right?: ReactNode;
   color?: string;
+  /** 이전 화면이 없을 때 돌아갈 곳 */
+  fallback?: Href;
 };
 
-export function ScreenHeader({ title, backLabel = '뒤로', right, color = colors.text }: Props) {
+export function ScreenHeader({ title, backLabel = '뒤로', right, color = colors.text, fallback = '/' }: Props) {
   return (
     <View style={styles.bar}>
       <Pressable
-        onPress={goBack}
+        onPress={() => goBack(fallback)}
         accessibilityRole="button"
         accessibilityLabel={backLabel}
         hitSlop={4}

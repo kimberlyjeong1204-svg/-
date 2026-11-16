@@ -118,3 +118,39 @@ export function MusicIcon({ size = 22, color = colors.textSoft }: P) {
     </Svg>
   );
 }
+
+export function DropIcon({ size = 24, color = colors.text }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinejoin="round">
+      <Path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />
+    </Svg>
+  );
+}
+
+export function StretchIcon({ size = 24, color = colors.text }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <Circle cx={12} cy={4.5} r={1.8} />
+      <Path d="M5 8l7 2 7-2" />
+      <Path d="M12 10v5l-3 6M12 15l3 6" />
+    </Svg>
+  );
+}
+
+export function LeafIcon({ size = 24, color = colors.text }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M5 19C5 10 11 5 20 4c-1 9-6 15-15 15z" />
+      <Path d="M5 19l8-8" />
+    </Svg>
+  );
+}
+
+export function CheckboxIcon({ checked, size = 24 }: { checked: boolean; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x={1} y={1} width={22} height={22} rx={7} fill={checked ? colors.sageDeep : 'none'} stroke={checked ? colors.sageDeep : '#B9B8AA'} strokeWidth={1.5} />
+      {checked && <Path d="M6.5 12.5l3.5 3.5 7.5-8" fill="none" stroke={colors.white} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />}
+    </Svg>
+  );
+}
