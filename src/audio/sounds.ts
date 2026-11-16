@@ -20,8 +20,12 @@ export function isAmbience(key: SoundKey): key is AmbienceKey {
   return key === 'rain' || key === 'lightRain';
 }
 
+/** 숲 배경에서 함께 반복 재생하는 두 트랙 */
+export type ForestTrackKey = 'forestBugs' | 'forestWind';
+export type TrackKey = AmbienceKey | ForestTrackKey;
+
 export type Ambience = {
-  key: AmbienceKey;
+  key: TrackKey;
   label: string;
   // require()로 불러온 앱 내장 음원
   source: number;
@@ -72,3 +76,34 @@ export const SOUND_OPTIONS: { key: SoundKey; label: string }[] = [
 export function soundLabel(key: SoundKey) {
   return SOUND_OPTIONS.find((o) => o.key === key)?.label ?? '소리 없음';
 }
+
+/*
+ * 숲 소리 (멍때리기 · 숲 배경 전용). 두 트랙을 동시에, 각각 따로 반복 재생합니다.
+ * 측정값 (2026-11-16, 원본 Mixkit WAV 기준)
+ * - Summer night crickets loop (#1789): 42.0초, -27.2 LUFS, 반복용으로 만든 음원(끝과 처음이 자연스럽게 이어짐)
+ * - Wind in the forest (#1237): 25.3초, -40.0 LUFS, 새소리 없는 잔잔한 잎 바람
+ * 두 파일 모두 -24 LUFS로 맞춰 변환했으므로 gain은 1이고, 화면의 음량(기본 35% / 20%)이 그대로 비율이 됩니다.
+ */
+export const FOREST_TRACKS: Record<ForestTrackKey, Ambience> = {
+  forestBugs: {
+    key: 'forestBugs',
+    label: '귀뚜라미 · 풀벌레',
+    source: require('../../assets/sounds/forest-crickets.m4a'),
+    gain: 1,
+    loopStart: 0.08,
+    loopEnd: 41.9,
+    crossfade: 2.5,
+  },
+  forestWind: {
+    key: 'forestWind',
+    label: '나뭇잎 사이 바람',
+    source: require('../../assets/sounds/forest-wind.m4a'),
+    gain: 1,
+    loopStart: 0.08,
+    loopEnd: 25.2,
+    crossfade: 3.5,
+  },
+};
+
+/** 숲 소리 기본 음량 */
+export const FOREST_DEFAULT_VOLUME: Record<ForestTrackKey, number> = { forestBugs: 0.35, forestWind: 0.2 };

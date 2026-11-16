@@ -13,6 +13,8 @@ import { formatTime, useSession } from '../lib/useSession';
 import { KEYS, isBoolean, isOneOf, usePersistentState } from '../lib/storage';
 import { goHome } from '../lib/navigation';
 import { useAmbience, useSoundChoice } from '../audio/useAmbience';
+import { useForestSound, useForestSoundSettings } from '../audio/useForestSound';
+import { ForestSoundButton } from '../components/forest/ForestSoundButton';
 import { type } from '../theme';
 
 const INK = '#4A4F42';
@@ -40,9 +42,12 @@ export default function ZoneOut() {
   const isForest = scene === 'forest';
   const ink = isForest ? FOREST_INK : INK;
   const reduceMotion = useReduceMotion();
+  const [forestSound, setForestSound] = useForestSoundSettings();
   const session = useSession(durationSec);
   const { phase } = session;
-  const { yieldedToMusic } = useAmbience(phase, sound);
+  // 노을: 기존 소리 선택(빗소리 등) 그대로 / 숲: 귀뚜라미·풀벌레 + 바람 두 트랙
+  const { yieldedToMusic: rainYielded } = useAmbience(phase, isForest ? 'none' : sound);
+  const { yieldedToMusic: forestYielded } = useForestSound(phase, isForest, forestSound);
 
   // 시간이 다 되면 문구 없이 화면을 흐리게 하고 조용히 홈으로 돌아갑니다.
   const contentOpacity = useRef(new Animated.Value(1)).current;
@@ -79,7 +84,13 @@ export default function ZoneOut() {
       {isForest ? <ForestScene reduceMotion={reduceMotion} /> : <DuskSky />}
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <Animated.View style={[styles.safe, { opacity: Animated.multiply(contentOpacity, uiOpacity) }]}>
-          <ScreenHeader title="멍때리기" backLabel="홈으로" color={ink} right={<SoundPicker value={sound} onChange={setSound} color={ink} />} />
+          <ScreenHeader title="멍때리기" backLabel="홈으로" color={ink} right={
+              isForest ? (
+                <ForestSoundButton value={forestSound} onChange={setForestSound} />
+              ) : (
+                <SoundPicker value={sound} onChange={setSound} color={ink} />
+              )
+            } />
 
           <View style={styles.pickers}>
             <Segmented
@@ -100,7 +111,8 @@ export default function ZoneOut() {
           <View style={styles.spacer} />
 
           <View style={styles.bottom}>
-            {yieldedToMusic && <Text style={[styles.musicNote, { color: ink }]}>다른 앱 음악이 재생 중이라 빗소리는 꺼 두었어요.</Text>}
+            {rainYielded && <Text style={[styles.musicNote, { color: ink }]}>다른 앱 음악이 재생 중이라 빗소리는 꺼 두었어요.</Text>}
+            {forestYielded && <Text style={[styles.musicNote, { color: ink }]}>다른 앱 음악이 재생 중이라 숲 소리는 꺼 두었어요.</Text>}
             <Pressable
               onPress={() => setHideTime(!hideTime)}
               accessibilityRole="button"

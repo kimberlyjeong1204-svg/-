@@ -1,5 +1,5 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
-import { AMBIENCES, isAmbience, type Ambience, type SoundKey } from './sounds';
+import { AMBIENCES, isAmbience, type Ambience, type SoundKey, type TrackKey } from './sounds';
 
 /**
  * 환경음 재생기 (앱 전체에서 하나만 사용)
@@ -34,7 +34,7 @@ const linear = (p: number) => p;
 const equalPowerIn = (p: number) => Math.sin((p * Math.PI) / 2);
 const equalPowerOut = (p: number) => 1 - Math.cos((p * Math.PI) / 2);
 
-class AmbiencePlayer {
+export class AmbiencePlayer {
   private track: Ambience | null = null;
   private voices: [Voice, Voice] | null = null;
   private active = 0;
@@ -44,6 +44,8 @@ class AmbiencePlayer {
   private modeReady: Promise<void> | null = null;
   /** 시작·정지가 연달아 불릴 때 앞선 비동기 작업을 무효로 만들기 위한 번호 */
   private generation = 0;
+  /** 사용자가 정한 음량(0~1). 숲 소리처럼 트랙마다 음량을 조절할 때 씁니다. 기본 1 */
+  private userVol = { from: 1, to: 1, startedAt: 0, durationMs: 1 };
 
   private ensureMode() {
     if (!this.modeReady) {
@@ -59,8 +61,19 @@ class AmbiencePlayer {
   }
 
   /** 지금 재생 중이거나 일시정지된 소리 */
-  get currentKey(): SoundKey {
+  get currentKey(): TrackKey | 'none' {
     return this.track?.key ?? 'none';
+  }
+
+  /** 사용자 음량을 부드럽게 바꿉니다 (0~1) */
+  setVolume(volume: number, rampMs = 300) {
+    this.userVol = { from: this.currentUserVolume(), to: clamp01(volume), startedAt: Date.now(), durationMs: Math.max(1, rampMs) };
+  }
+
+  private currentUserVolume() {
+    const u = this.userVol;
+    const p = Math.min(1, (Date.now() - u.startedAt) / u.durationMs);
+    return u.from + (u.to - u.from) * p;
   }
 
   /** 휴식을 시작할 때. 소리를 고르지 않았으면 아무것도 하지 않습니다. */
@@ -69,7 +82,12 @@ class AmbiencePlayer {
       this.fadeOutAndStop(600);
       return;
     }
-    if (this.track?.key === key && this.voices) {
+    await this.playTrack(AMBIENCES[key], fadeInMs);
+  }
+
+  /** 정해진 트랙을 재생합니다 (빗소리·숲 소리 공용) */
+  async playTrack(track: Ambience, fadeInMs = 1500) {
+    if (this.track?.key === track.key && this.voices) {
       this.resume(fadeInMs);
       return;
     }
@@ -81,7 +99,6 @@ class AmbiencePlayer {
     await this.ensureMode();
     if (gen !== this.generation) return;
 
-    const track = AMBIENCES[key];
     const voices: [Voice, Voice] = [
       { player: createAudioPlayer(track.source), level: 0, tween: null },
       { player: createAudioPlayer(track.source), level: 0, tween: null },
@@ -219,16 +236,22 @@ class AmbiencePlayer {
     }
     const now = Date.now();
 
-    // 1) 볼륨 변화 적용
+    // 1) 볼륨 변화 적용 (페이드 × 트랙 기준 음량 × 사용자 음량)
+    const userVolume = this.currentUserVolume();
     for (const v of voices) {
       const tw = v.tween;
-      if (!tw) continue;
-      const p = Math.min(1, (now - tw.startedAt) / tw.durationMs);
-      v.level = tw.from + (tw.to - tw.from) * tw.curve(p);
-      v.player.volume = clamp01(v.level * track.gain);
-      if (p >= 1) {
-        v.tween = null;
-        tw.onDone?.();
+      let done: (() => void) | undefined;
+      if (tw) {
+        const p = Math.min(1, (now - tw.startedAt) / tw.durationMs);
+        v.level = tw.from + (tw.to - tw.from) * tw.curve(p);
+        if (p >= 1) {
+          v.tween = null;
+          done = tw.onDone ?? (() => {});
+        }
+      }
+      v.player.volume = clamp01(v.level * track.gain * userVolume);
+      if (done) {
+        done();
         if (!this.voices) return; // onDone에서 정리됨
       }
     }
