@@ -9,6 +9,7 @@ export const KEYS = {
   sound: 'shimpyo.sound',
   breathRhythm: 'shimpyo.breathRhythm',
   zoneOutHideTime: 'shimpyo.zoneOutHideTime',
+  zoneOutScene: 'shimpyo.zoneOutScene',
   restAlarm: 'shimpyo.restAlarm',
   bedtimeAlarm: 'shimpyo.bedtimeAlarm',
 } as const;

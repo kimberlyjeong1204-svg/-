@@ -9,9 +9,11 @@ type Props = {
   /** 그만하기: 확인 없이 바로 끝냅니다. */
   onStop: () => void;
   stopBackground?: string;
+  /** 그만하기 아이콘 색 (어두운 배경용) */
+  stopColor?: string;
 };
 
-export function PlayControls({ phase, onToggle, onStop, stopBackground = colors.beige }: Props) {
+export function PlayControls({ phase, onToggle, onStop, stopBackground = colors.beige, stopColor }: Props) {
   const running = phase === 'running';
   const showStop = phase === 'running' || phase === 'paused';
   return (
@@ -32,7 +34,7 @@ export function PlayControls({ phase, onToggle, onStop, stopBackground = colors.
           accessibilityLabel="그만하기"
           style={({ pressed }) => [styles.stop, { backgroundColor: stopBackground }, pressed && styles.pressed]}
         >
-          <StopIcon />
+          <StopIcon color={stopColor} />
         </Pressable>
       )}
     </View>

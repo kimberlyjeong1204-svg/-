@@ -4,17 +4,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Defs, Ellipse, Path, RadialGradient, Stop } from 'react-native-svg';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { Segmented } from '../components/Segmented';
+import { ChipGroup, Segmented } from '../components/Segmented';
+import { ForestScene } from '../components/forest/ForestScene';
 import { PlayControls } from '../components/PlayControls';
 import { SoundPicker } from '../components/SoundPicker';
 import { useReduceMotion } from '../components/BreathCircle';
 import { formatTime, useSession } from '../lib/useSession';
-import { KEYS, isBoolean, usePersistentState } from '../lib/storage';
+import { KEYS, isBoolean, isOneOf, usePersistentState } from '../lib/storage';
 import { goHome } from '../lib/navigation';
 import { useAmbience, useSoundChoice } from '../audio/useAmbience';
 import { type } from '../theme';
 
 const INK = '#4A4F42';
+/** 숲 위에서 쓰는 글자·아이콘 색 (짙은 숲 위 9:1 이상) */
+const FOREST_INK = '#EDE6D3';
+
+type Scene = 'forest' | 'dusk';
+const SCENES: { value: Scene; label: string }[] = [
+  { value: 'forest', label: '숲' },
+  { value: 'dusk', label: '노을' },
+];
 
 const DURATIONS = [
   { value: 30, label: '30초' },
@@ -26,6 +35,11 @@ export default function ZoneOut() {
   const [durationSec, setDurationSec] = useState(180);
   const [hideTime, setHideTime] = usePersistentState<boolean>(KEYS.zoneOutHideTime, false, isBoolean);
   const [sound, setSound] = useSoundChoice();
+  // 배경: 숲(기본) / 노을(기존 화면 그대로). 기기에 저장됩니다.
+  const [scene, setScene] = usePersistentState<Scene>(KEYS.zoneOutScene, 'forest', isOneOf(['forest', 'dusk'] as const));
+  const isForest = scene === 'forest';
+  const ink = isForest ? FOREST_INK : INK;
+  const reduceMotion = useReduceMotion();
   const session = useSession(durationSec);
   const { phase } = session;
   const { yieldedToMusic } = useAmbience(phase, sound);
@@ -41,12 +55,31 @@ export default function ZoneOut() {
 
   const idle = phase === 'idle';
 
+  // 숲에서 쉬는 중에는 4초 동안 손대지 않으면 버튼과 글자가 옅어지고, 화면을 누르면 다시 보입니다.
+  const uiOpacity = useRef(new Animated.Value(1)).current;
+  const [wakeTick, setWakeTick] = useState(0);
+  const dimUi = isForest && phase === 'running';
+  useEffect(() => {
+    Animated.timing(uiOpacity, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    if (!dimUi) return;
+    const t = setTimeout(() => {
+      Animated.timing(uiOpacity, { toValue: 0.3, duration: 1600, useNativeDriver: true }).start();
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [dimUi, wakeTick, uiOpacity]);
+
   return (
-    <View style={styles.root}>
-      <DuskSky />
+    <View
+      style={[styles.root, isForest && styles.rootForest]}
+      onStartShouldSetResponderCapture={() => {
+        if (dimUi) setWakeTick((n) => n + 1);
+        return false;
+      }}
+    >
+      {isForest ? <ForestScene reduceMotion={reduceMotion} /> : <DuskSky />}
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <Animated.View style={[styles.safe, { opacity: contentOpacity }]}>
-          <ScreenHeader title="멍때리기" backLabel="홈으로" color={INK} right={<SoundPicker value={sound} onChange={setSound} color={INK} />} />
+        <Animated.View style={[styles.safe, { opacity: Animated.multiply(contentOpacity, uiOpacity) }]}>
+          <ScreenHeader title="멍때리기" backLabel="홈으로" color={ink} right={<SoundPicker value={sound} onChange={setSound} color={ink} />} />
 
           <View style={styles.pickers}>
             <Segmented
@@ -54,28 +87,35 @@ export default function ZoneOut() {
               options={DURATIONS}
               value={durationSec}
               disabled={!idle}
-              trackColor="rgba(255,252,246,0.45)"
-              textColor={INK}
+              trackColor={isForest ? 'rgba(237,230,211,0.14)' : 'rgba(255,252,246,0.45)'}
+              textColor={ink}
               onChange={(v) => {
                 setDurationSec(v);
                 session.reset(v);
               }}
             />
+            <ChipGroup accessibilityLabel="배경" options={SCENES} value={scene} disabled={!idle} onChange={setScene} tone={isForest ? 'dark' : 'light'} />
           </View>
 
           <View style={styles.spacer} />
 
           <View style={styles.bottom}>
-            {yieldedToMusic && <Text style={styles.musicNote}>다른 앱 음악이 재생 중이라 빗소리는 꺼 두었어요.</Text>}
+            {yieldedToMusic && <Text style={[styles.musicNote, { color: ink }]}>다른 앱 음악이 재생 중이라 빗소리는 꺼 두었어요.</Text>}
             <Pressable
               onPress={() => setHideTime(!hideTime)}
               accessibilityRole="button"
               accessibilityLabel={hideTime ? '남은 시간 보이기' : `남은 시간 ${formatTime(session.remainingSec)}, 누르면 숨기기`}
               style={styles.timeBtn}
             >
-              <Text style={[styles.time, hideTime && styles.timeHidden]}>{hideTime ? '· · ·' : formatTime(session.remainingSec)}</Text>
+              <Text style={[styles.time, { color: ink }, hideTime && styles.timeHidden]}>{hideTime ? '· · ·' : formatTime(session.remainingSec)}</Text>
             </Pressable>
-            <PlayControls phase={phase} onToggle={session.toggle} onStop={goHome} stopBackground="rgba(255,250,242,0.6)" />
+            <PlayControls
+              phase={phase}
+              onToggle={session.toggle}
+              onStop={goHome}
+              stopBackground={isForest ? 'rgba(237,230,211,0.14)' : 'rgba(255,250,242,0.6)'}
+              stopColor={isForest ? FOREST_INK : undefined}
+            />
           </View>
         </Animated.View>
       </SafeAreaView>
@@ -159,7 +199,8 @@ function DuskSky() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#E6DDD2' },
   safe: { flex: 1 },
-  pickers: { paddingHorizontal: 28, paddingTop: 12 },
+  rootForest: { backgroundColor: '#0B1A1E' },
+  pickers: { paddingHorizontal: 28, paddingTop: 12, gap: 12 },
   spacer: { flex: 1 },
   bottom: { alignItems: 'center', gap: 20, paddingBottom: 72 },
   timeBtn: { minWidth: 140, minHeight: 52, alignItems: 'center', justifyContent: 'center' },
