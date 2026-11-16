@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "쉼표.",
+    "slug": "shimpyo",
+    "scheme": "shimpyo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F8F6EF",
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "ko"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F8F6EF",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "쉼표.",
+      "shortName": "쉼표.",
+      "lang": "ko",
+      "themeColor": "#F8F6EF",
+      "backgroundColor": "#F8F6EF",
+      "output": "single",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F8F6EF",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160
+        }
+      ],
+      "expo-asset"
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- viewport-fit=cover: 아이폰 노치·홈 바 영역까지 배경을 채우고, 안전 영역은 앱이 직접 비웁니다. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>쉼표.</title>
+    <meta name="description" content="몰입하는 일상에, 잠깐의 여유. 숨 고르기와 멍때리기로 잠깐 쉬어 가는 앱." />
+    <meta name="theme-color" content="#F8F6EF" />
+    <meta name="color-scheme" content="light" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- 본문 글꼴 Pretendard (SIL OFL 1.1): 화면에 나오는 글자 묶음만 내려받습니다 -->
+    <link rel="stylesheet" href="/fonts/pretendard/pretendard.css" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <!-- 아이폰 홈 화면에 추가했을 때 앱처럼 열리도록 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="쉼표." />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        background-color: #F8F6EF;
+      }
+      body {
+        overflow: hidden;
+        margin: 0;
+        /* 휴대폰에서 두 번 눌러 확대·당겨서 새로고침 방지 */
+        touch-action: manipulation;
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>쉼표.를 사용하려면 JavaScript를 켜 주세요.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
