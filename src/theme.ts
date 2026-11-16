@@ -65,7 +65,11 @@ export const shadow = {
 } as const;
 
 // ─── 글꼴 ─────────────────────────────────────────────
-/** 홈 로고 「쉼표.」와 슬로건만 감성적인 명조(고운바탕)를 씁니다. */
+/**
+ * 홈 로고 「쉼표.」와 슬로건만 감성적인 명조(고운바탕)를 씁니다.
+ * 앱 용량을 줄이려고 글꼴 파일에는 다음 글자만 들어 있습니다: 쉼표. 몰입하는 일상에, 잠깐의 여유.
+ * 다른 글자를 이 글꼴로 쓰려면 scripts/subset-display-font.sh의 TEXT에 추가하고 다시 실행하세요.
+ */
 export const fonts = {
   display: 'GowunBatang_700Bold',
   displayRegular: 'GowunBatang_400Regular',

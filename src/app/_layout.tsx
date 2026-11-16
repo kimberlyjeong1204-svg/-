@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { GowunBatang_400Regular, GowunBatang_700Bold, useFonts } from '@expo-google-fonts/gowun-batang';
+import { useFonts } from 'expo-font';
 import { Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerServiceWorker } from '../lib/pwa';
@@ -14,8 +14,9 @@ registerServiceWorker();
 export default function RootLayout() {
   // 웹은 public/fonts/pretendard의 분할 글꼴(CSS)로 필요한 글자만 받습니다. 앱은 글꼴 파일을 함께 넣습니다.
   const [loaded, error] = useFonts({
-    GowunBatang_400Regular,
-    GowunBatang_700Bold,
+    // 로고·슬로건 전용 고운바탕: 실제로 쓰는 글자만 남긴 파일 (scripts/subset-display-font.sh)
+    GowunBatang_400Regular: require('../../assets/fonts/GowunBatang-Regular-subset.ttf'),
+    GowunBatang_700Bold: require('../../assets/fonts/GowunBatang-Bold-subset.ttf'),
     ...(Platform.OS === 'web'
       ? {}
       : {

@@ -20,6 +20,8 @@
 - 앱(iOS): Pretendard OTF 3개를 앱에 포함 (`assets/fonts`).
 - 웹앱: 화면에 나오는 글자 묶음만 내려받는 분할 woff2 (`public/fonts/pretendard`).
 - 라이선스: SIL Open Font License 1.1 (`assets/fonts/OFL-Pretendard.txt`). 글꼴만 따로 판매하지 않는 한 앱에 넣어 배포할 수 있습니다.
+- 고운바탕은 로고·슬로건에 쓰는 글자(「쉼표. 몰입하는 일상에, 잠깐의 여유.」)만 남긴 파일을 씁니다. 원본 두 파일 16.6MB → 16.7KB.
+  문구를 바꾸면 `scripts/subset-display-font.sh`를 다시 실행하세요. 라이선스: SIL OFL 1.1 (`assets/fonts/OFL-GowunBatang.txt`).
 
 ## 글자 크기 (`type`)
 
