@@ -154,3 +154,13 @@ export function CheckboxIcon({ checked, size = 24 }: { checked: boolean; size?: 
     </Svg>
   );
 }
+
+export function SlidersIcon({ size = 22, color = colors.textSoft }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round">
+      <Path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+      <Circle cx={16} cy={7} r={2} />
+      <Circle cx={10} cy={17} r={2} />
+    </Svg>
+  );
+}

@@ -27,14 +27,20 @@ export default function Home() {
         </View>
 
         <View style={[styles.buttons, compact && styles.buttonsCompact]}>
-          <Pressable onPress={() => router.push('/breathe')} accessibilityRole="button" style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.btnPressed]}>
-            <BreathIcon color={colors.white} />
-            <Text style={[styles.btnLabel, { color: colors.white }]}>숨 고르기</Text>
+          <Pressable onPress={() => router.push('/forest')} accessibilityRole="button" style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.btnPressed]}>
+            <Text style={[styles.btnLabel, { color: colors.white }]}>나의 숲으로</Text>
           </Pressable>
-          <Pressable onPress={() => router.push('/zone-out')} accessibilityRole="button" style={({ pressed }) => [styles.btn, styles.btnSecondary, pressed && styles.btnPressed]}>
-            <CupIcon />
-            <Text style={styles.btnLabel}>멍때리기</Text>
-          </Pressable>
+          {/* 기존 활동은 작은 보조 버튼으로 유지 (숲 안에서 고르는 구조가 자리 잡으면 다시 검토) */}
+          <View style={styles.subRow}>
+            <Pressable onPress={() => router.push('/breathe')} accessibilityRole="button" style={({ pressed }) => [styles.btn, styles.btnSecondary, styles.btnSmall, pressed && styles.btnPressed]}>
+              <BreathIcon />
+              <Text style={[styles.btnLabel, styles.btnLabelSmall]}>숨 고르기</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push('/zone-out')} accessibilityRole="button" style={({ pressed }) => [styles.btn, styles.btnSecondary, styles.btnSmall, pressed && styles.btnPressed]}>
+              <CupIcon />
+              <Text style={[styles.btnLabel, styles.btnLabelSmall]}>멍때리기</Text>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
     </View>
@@ -68,4 +74,7 @@ const styles = StyleSheet.create({
   btnSecondary: { backgroundColor: colors.secondary, ...shadow.soft },
   btnPressed: { transform: [{ scale: 0.98 }], opacity: 0.92 },
   btnLabel: { ...type.button, color: colors.text },
+  subRow: { flexDirection: 'row', gap: 12 },
+  btnSmall: { flex: 1, height: 52 },
+  btnLabelSmall: { fontSize: 16 },
 });

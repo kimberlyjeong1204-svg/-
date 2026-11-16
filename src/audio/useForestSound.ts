@@ -44,11 +44,13 @@ export function useForestSoundSettings() {
   return usePersistentState<ForestSoundSettings>(KEYS.forestSound, DEFAULT_FOREST_SOUND, isForestSoundSettings);
 }
 
-// 트랙마다 재생기 하나씩 (앱 전체에서 공유)
-const players: Record<ForestTrackKey, AmbiencePlayer> = {
+// 트랙마다 재생기 하나씩 (앱 전체에서 공유: 멍때리기의 숲 배경과 /forest 숲 공간이 함께 씀)
+export const forestPlayers: Record<ForestTrackKey, AmbiencePlayer> = {
   forestBugs: new AmbiencePlayer(),
   forestWind: new AmbiencePlayer(),
 };
+
+const players = forestPlayers;
 
 export function useForestSound(phase: SessionPhase, active: boolean, settings: ForestSoundSettings) {
   const [yielded, setYielded] = useState(false);

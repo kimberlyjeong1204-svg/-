@@ -11,6 +11,7 @@ export const KEYS = {
   zoneOutHideTime: 'shimpyo.zoneOutHideTime',
   zoneOutScene: 'shimpyo.zoneOutScene',
   forestSound: 'shimpyo.forestSound',
+  forestWeather: 'shimpyo.forestWeather',
   restAlarm: 'shimpyo.restAlarm',
   bedtimeAlarm: 'shimpyo.bedtimeAlarm',
 } as const;
