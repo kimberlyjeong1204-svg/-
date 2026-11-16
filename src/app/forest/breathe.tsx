@@ -25,9 +25,9 @@ const DURATIONS = [
 ];
 const RHYTHM_OPTIONS = (Object.keys(RHYTHMS) as RhythmKey[]).map((k) => ({ value: k, label: RHYTHMS[k].label }));
 
+// 숲 안에서 왔든 홈에서 바로 왔든, 끝나면 숲 전체 화면으로
 function backToForest() {
-  if (router.canGoBack()) router.back();
-  else router.replace('/forest');
+  router.dismissTo('/forest');
 }
 
 export default function ForestBreathe() {

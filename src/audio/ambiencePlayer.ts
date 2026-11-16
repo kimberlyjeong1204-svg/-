@@ -181,6 +181,21 @@ export class AmbiencePlayer {
     return this.voices != null && !this.paused;
   }
 
+  /** 앱(iOS)에는 브라우저 자동 재생 제한이 없어 항상 false (웹 재생기와 같은 모양) */
+  get playbackBlocked(): boolean {
+    return false;
+  }
+
+  /** 실제로 소리가 나고 있는지 (앱에서는 재생 중이면 소리가 남) */
+  get isSounding(): boolean {
+    return this.isPlaying;
+  }
+
+  /** 웹 재생기와 같은 모양: 일시정지가 아니면 이어서 재생 */
+  retry() {
+    if (this.voices && !this.paused) this.resume(800);
+  }
+
   /** 휴식 중에 다른 소리를 고른 경우 */
   async switchTo(key: SoundKey, playing: boolean) {
     if (key === this.currentKey) return;

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ForestScene } from '../../components/forest/ForestScene';
 import { ForestSpaceProvider, useForestSpace } from '../../components/forest/ForestSpace';
 import { ForestSoundButton } from '../../components/forest/ForestSoundButton';
+import { SoundPrompt } from '../../components/forest/SoundPrompt';
 import { BackIcon, SoundOffIcon, SoundOnIcon } from '../../components/icons';
 import { useReduceMotion } from '../../components/BreathCircle';
 import { useForestAmbience } from '../../audio/useForestAmbience';
@@ -16,7 +17,7 @@ import { HIT, radius, type } from '../../theme';
 /**
  * 나의 숲 (공통 숲 공간)
  *
- * 숲 그림과 자연음은 이 레이아웃에서 한 번만 켭니다. 숲 안의 화면(숲에 머물기, 숨 고르기, 멍때리기)은
+ * 숲 그림과 자연음은 이 레이아웃에서 한 번만 켭니다. 숲 안의 화면(숲 전체 화면, 숨 고르기, 숲에 머물기)은
  * 그 위에 투명하게 겹쳐지므로, 활동을 바꿔도 그림과 소리가 끊기지 않습니다.
  */
 export default function ForestLayout() {
@@ -28,10 +29,13 @@ export default function ForestLayout() {
 }
 
 function ForestShell() {
-  const { soundOn, setSoundOn, uiOpacity, uiHidden, wakeUi } = useForestSpace();
+  const { soundOn, setSoundOn, needsSoundPrompt, uiOpacity, uiHidden, wakeUi } = useForestSpace();
   const reduceMotion = useReduceMotion();
   const [settings, setSettings] = useForestSoundSettings();
-  const { yieldedToMusic } = useForestAmbience(soundOn, settings);
+  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, settings);
+  // 「켜짐」은 실제로 소리가 나는 것이 확인됐을 때만 보여 줍니다.
+  const audible = status === 'on';
+  const blocked = status === 'blocked';
   const pathname = usePathname();
   const atForestHome = pathname === '/forest';
 
@@ -52,11 +56,18 @@ function ForestShell() {
     }
   };
 
+  const onSoundPress = () => {
+    if (blocked) retry();
+    else changeSound(!soundOn);
+  };
+
+  // 홈에서 숨 고르기·숲에 머물기로 바로 들어와도, 뒤로 가면 숲 전체 화면으로
   const onBack = () => {
     if (atForestHome) goBack('/');
-    else if (router.canGoBack()) router.back();
-    else router.replace('/forest');
+    else router.dismissTo('/forest');
   };
+
+  const soundLabel = blocked ? '눌러서 소리 켜기' : status === 'starting' ? '소리 켜는 중' : soundOn ? '소리 끄기' : '소리 켜기';
 
   return (
     <View
@@ -93,15 +104,16 @@ function ForestShell() {
           </Pressable>
           <View style={styles.right}>
             <Pressable
-              onPress={() => changeSound(!soundOn)}
+              onPress={onSoundPress}
               accessibilityRole="switch"
               accessibilityLabel="숲 소리"
-              accessibilityState={{ checked: soundOn }}
-              aria-checked={soundOn}
-              style={({ pressed }) => [styles.soundPill, soundOn && styles.soundPillOn, pressed && styles.pressed]}
+              accessibilityHint={blocked ? '소리가 멈춰 있어요. 누르면 다시 켜요.' : undefined}
+              accessibilityState={{ checked: audible }}
+              aria-checked={audible}
+              style={({ pressed }) => [styles.soundPill, audible && styles.soundPillOn, pressed && styles.pressed]}
             >
-              {soundOn ? <SoundOnIcon size={20} color={FOREST_UI.ink} /> : <SoundOffIcon size={20} color={FOREST_UI.ink} />}
-              <Text style={styles.soundText}>{soundOn ? '소리 끄기' : '소리 켜기'}</Text>
+              {audible ? <SoundOnIcon size={20} color={FOREST_UI.ink} /> : <SoundOffIcon size={20} color={FOREST_UI.ink} />}
+              <Text style={styles.soundText}>{soundLabel}</Text>
             </Pressable>
             <ForestSoundButton value={settings} onChange={setSettings} masterOn={soundOn} onMasterChange={changeSound} trigger="settings"
               note="숲에 머무는 동안 계속 들려요. 숲을 나가면 천천히 작아져요."
@@ -110,13 +122,25 @@ function ForestShell() {
         </Animated.View>
       </SafeAreaView>
 
-      {(hint || yieldedToMusic) && (
-        <View style={styles.hintWrap} pointerEvents="none">
-          <Text style={styles.hint} accessibilityLiveRegion="polite">
-            {hint ?? '다른 앱 음악이 재생 중이라 숲 소리는 잠시 쉬고 있어요.'}
-          </Text>
+      {blocked && !needsSoundPrompt ? (
+        // 다시 방문했을 때 브라우저가 소리를 막은 경우: 눌러서 다시 켜기
+        <View style={styles.hintWrap} pointerEvents="box-none">
+          <Pressable onPress={retry} accessibilityRole="button" style={({ pressed }) => [styles.hintBtn, pressed && styles.pressed]}>
+            <SoundOffIcon size={18} color={FOREST_UI.ink} />
+            <Text style={styles.hintBtnText}>숲소리가 멈춰 있어요. 눌러서 다시 켜기</Text>
+          </Pressable>
         </View>
+      ) : (
+        (hint || yieldedToMusic) && (
+          <View style={styles.hintWrap} pointerEvents="none">
+            <Text style={styles.hint} accessibilityLiveRegion="polite">
+              {hint ?? '다른 앱 음악이 재생 중이라 숲 소리는 잠시 쉬고 있어요.'}
+            </Text>
+          </View>
+        )
       )}
+
+      {needsSoundPrompt && <SoundPrompt onChoose={changeSound} />}
     </View>
   );
 }
@@ -145,6 +169,16 @@ const styles = StyleSheet.create({
   soundText: { ...type.small, fontSize: 14, color: FOREST_UI.ink },
   pressed: { opacity: 0.6 },
   hintWrap: { position: 'absolute', left: 0, right: 0, top: 120, alignItems: 'center', paddingHorizontal: 24 },
+  hintBtn: {
+    minHeight: HIT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(10, 22, 24, 0.7)',
+  },
+  hintBtnText: { ...type.caption, fontSize: 14, color: FOREST_UI.ink },
   hint: {
     ...type.caption,
     color: FOREST_UI.ink,

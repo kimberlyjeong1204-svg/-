@@ -63,6 +63,10 @@ export class WebAmbiencePlayer {
   private generation = 0;
   /** 사용자가 정한 음량(0~1). 숲 소리처럼 트랙마다 음량을 조절할 때 씁니다. 기본 1 */
   private userVolume = 1;
+  /** 브라우저가 재생을 막았는지 (화면을 누르기 전 자동 재생 제한 등) */
+  private blocked = false;
+  /** play()가 성공해 실제로 재생이 시작됐는지 */
+  private confirmed = false;
 
   get currentKey(): TrackKey | 'none' {
     return this.track?.key ?? 'none';
@@ -82,6 +86,42 @@ export class WebAmbiencePlayer {
     return this.voices != null && !this.paused;
   }
 
+  /**
+   * 재생하려 했지만 실제로는 소리가 나지 않는 상태인지.
+   * (브라우저가 재생을 막았거나, 오디오가 아직 잠겨 있음) 이때는 「켜짐」으로 보이면 안 됩니다.
+   */
+  get playbackBlocked(): boolean {
+    if (!this.voices || this.paused) return false;
+    if (this.blocked) return true;
+    const c = ctx;
+    return c != null && c.state !== 'running';
+  }
+
+  /** 실제로 소리가 나고 있는지 (재생 시작이 확인됨 + 오디오가 잠겨 있지 않음) */
+  get isSounding(): boolean {
+    return this.voices != null && !this.paused && this.confirmed && !this.playbackBlocked;
+  }
+
+  /** 사용자가 화면을 누른 순간에 다시 재생을 시도합니다 (막혔을 때) */
+  retry() {
+    const c = getContext();
+    if (c && c.state !== 'running') void c.resume().catch(() => {});
+    if (this.voices && !this.paused) this.resume(800);
+  }
+
+  private playEl(el: HTMLAudioElement) {
+    return el.play().then(
+      () => {
+        this.blocked = false;
+        this.confirmed = true;
+      },
+      () => {
+        this.blocked = true;
+        this.confirmed = false;
+      },
+    );
+  }
+
   async start(key: SoundKey, fadeInMs = 1500) {
     if (!isAmbience(key)) {
       this.fadeOutAndStop(600);
@@ -99,13 +139,15 @@ export class WebAmbiencePlayer {
     const gen = ++this.generation;
     this.releaseNow();
     this.paused = false;
+    this.confirmed = false;
     setAmbientSession();
 
     const uri = await resolveUri(track.source);
     if (gen !== this.generation || !uri) return;
 
     const c = getContext();
-    if (c && c.state === 'suspended') await c.resume().catch(() => {});
+    // 화면을 누르기 전에는 resume()이 끝나지 않을 수 있어 기다리지 않습니다(막힘 상태는 playbackBlocked로 알림).
+    if (c && c.state === 'suspended') void c.resume().catch(() => {});
     const voices: [Voice, Voice] = [makeVoice(uri, c), makeVoice(uri, c)];
     this.track = track;
     this.voices = voices;
@@ -115,7 +157,7 @@ export class WebAmbiencePlayer {
     const first = voices[0];
     await seek(first.el, track.loopStart);
     if (gen !== this.generation || this.paused) return;
-    await first.el.play().catch(() => {});
+    await this.playEl(first.el);
     this.ramp(first, 1, fadeInMs);
     this.ensureMonitor();
   }
@@ -144,7 +186,7 @@ export class WebAmbiencePlayer {
     this.ramp(other, 0, 1);
     other.el.pause();
     if (v.el.currentTime < track.loopStart) void seek(v.el, track.loopStart);
-    void v.el.play().catch(() => {});
+    void this.playEl(v.el);
     this.ramp(v, 1, fadeInMs);
     this.ensureMonitor();
   }

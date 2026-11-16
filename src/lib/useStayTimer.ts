@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export type StayTimerState = 'off' | 'running' | 'paused' | 'done';
 
 export function useStayTimer() {
-  const [minutes, setMinutes] = useState<number | null>(null);
+  const [seconds, setSeconds] = useState<number | null>(null);
   const [state, setState] = useState<StayTimerState>('off');
   const [remainingSec, setRemainingSec] = useState(0);
   const endAt = useRef(0);
@@ -29,16 +29,16 @@ export function useStayTimer() {
     return () => clearInterval(id);
   }, [state, tick]);
 
-  /** 시간 고르기: null이면 타이머 끄기 */
-  const choose = useCallback((m: number | null) => {
-    setMinutes(m);
-    if (m == null) {
+  /** 시간 고르기(초 단위): null이면 타이머 끄기 */
+  const choose = useCallback((sec: number | null) => {
+    setSeconds(sec);
+    if (sec == null) {
       setState('off');
       setRemainingSec(0);
       return;
     }
-    endAt.current = Date.now() + m * 60 * 1000;
-    setRemainingSec(m * 60);
+    endAt.current = Date.now() + sec * 1000;
+    setRemainingSec(sec);
     setState('running');
   }, []);
 
@@ -55,10 +55,10 @@ export function useStayTimer() {
   }, [state]);
 
   const reset = useCallback(() => {
-    setMinutes(null);
+    setSeconds(null);
     setState('off');
     setRemainingSec(0);
   }, []);
 
-  return { minutes, state, remainingSec, choose, pause, resume, reset };
+  return { seconds, state, remainingSec, choose, pause, resume, reset };
 }

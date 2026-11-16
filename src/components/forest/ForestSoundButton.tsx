@@ -18,7 +18,7 @@ type Props = {
   onMasterChange?: (on: boolean) => void;
   /** 'settings'이면 버튼 아이콘을 조절(슬라이더) 모양으로 */
   trigger?: 'sound' | 'settings';
-  /** 창 아래 안내 문구 (없으면 멍때리기용 기본 문구) */
+  /** 창 아래 안내 문구 (없으면 기본 문구) */
   note?: string;
 };
 

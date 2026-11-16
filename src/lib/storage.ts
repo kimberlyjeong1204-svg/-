@@ -12,6 +12,7 @@ export const KEYS = {
   zoneOutScene: 'shimpyo.zoneOutScene',
   forestSound: 'shimpyo.forestSound',
   forestWeather: 'shimpyo.forestWeather',
+  forestSoundPref: 'shimpyo.forestSoundPref',
   restAlarm: 'shimpyo.restAlarm',
   bedtimeAlarm: 'shimpyo.bedtimeAlarm',
 } as const;
@@ -50,11 +51,16 @@ function publish(key: string, value: unknown) {
  */
 export function usePersistentState<T>(key: string, fallback: T, isValid: (v: unknown) => v is T) {
   const [value, setValue] = useState<T>(() => (cache.has(key) ? (cache.get(key) as T) : fallback));
+  // 저장된 값을 읽었는지 (처음 방문 판단처럼 기본값과 저장값을 구분해야 할 때)
+  const [ready, setReady] = useState(() => cache.has(key));
 
   useEffect(() => {
     let alive = true;
     const fn = (v: unknown) => {
-      if (alive) setValue(v as T);
+      if (alive) {
+        setValue(v as T);
+        setReady(true);
+      }
     };
     let set = listeners.get(key);
     if (!set) listeners.set(key, (set = new Set()));
@@ -63,6 +69,8 @@ export function usePersistentState<T>(key: string, fallback: T, isValid: (v: unk
       loadValue(key, fallback, isValid).then((v) => {
         if (!cache.has(key)) publish(key, v);
       });
+    } else {
+      fn(cache.get(key));
     }
     return () => {
       alive = false;
@@ -80,7 +88,7 @@ export function usePersistentState<T>(key: string, fallback: T, isValid: (v: unk
     [key],
   );
 
-  return [value, update] as const;
+  return [value, update, ready] as const;
 }
 
 export const isOneOf =

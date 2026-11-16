@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 import { forestPlayers, FOREST_TRACK_ORDER, type ForestSoundSettings } from './useForestSound';
 import { FOREST_TRACKS } from './sounds';
@@ -13,7 +13,9 @@ import { addOtherAudioListener, isOtherAudioPlaying } from '../../modules/other-
  * - 다른 앱으로 전환하면 잠시 멈추고, 돌아오면 이어집니다.
  * - iOS 앱에서는 다른 앱 음악이 재생 중이면 양보합니다.
  * - 아이폰 무음 스위치는 우회하지 않습니다(웹: ambient 오디오).
+ * - 상태(status)는 실제로 소리가 나는지 확인해서 알려 줍니다. 브라우저가 재생을 막으면 'blocked'.
  */
+export type ForestSoundStatus = 'off' | 'starting' | 'on' | 'blocked';
 export function useForestAmbience(soundOn: boolean, settings: ForestSoundSettings) {
   const [appActive, setAppActive] = useState(AppState.currentState !== 'background');
   const [yielded, setYielded] = useState(false);
@@ -65,5 +67,36 @@ export function useForestAmbience(soundOn: boolean, settings: ForestSoundSetting
     [],
   );
 
-  return { yieldedToMusic: soundOn && yielded };
+  // 실제로 소리가 나는지 주기적으로 확인 (버튼에 「켜짐」을 거짓으로 보이지 않기 위해)
+  const [status, setStatus] = useState<ForestSoundStatus>('off');
+  useEffect(() => {
+    // 4초가 지나도 소리가 시작되지 않으면 막힌 것으로 보고 다시 켜기 안내
+    const since = Date.now();
+    const check = () => {
+      const wantedKeys = FOREST_TRACK_ORDER.filter((k) => !settings.muted[k] && settings.volume[k] > 0);
+      let next: ForestSoundStatus;
+      if (!soundOn || yielded || !appActive) next = 'off';
+      else if (wantedKeys.length === 0) next = 'on';
+      else if (wantedKeys.some((k) => forestPlayers[k].playbackBlocked)) next = 'blocked';
+      else if (wantedKeys.some((k) => forestPlayers[k].isSounding)) next = 'on';
+      else next = Date.now() - since > 4000 ? 'blocked' : 'starting';
+      setStatus(next);
+    };
+    check();
+    if (!soundOn) return;
+    const id = setInterval(check, 400);
+    return () => clearInterval(id);
+  }, [soundOn, settings, yielded, appActive]);
+
+  /** 브라우저가 재생을 막았을 때: 사용자가 누른 순간에 다시 재생 */
+  const retry = useCallback(() => {
+    for (const key of FOREST_TRACK_ORDER) {
+      const p = forestPlayers[key];
+      if (settings.muted[key] || settings.volume[key] <= 0) continue;
+      if (p.currentKey === key) p.retry();
+      else void p.playTrack(FOREST_TRACKS[key], 1500);
+    }
+  }, [settings]);
+
+  return { yieldedToMusic: soundOn && yielded, status, retry };
 }

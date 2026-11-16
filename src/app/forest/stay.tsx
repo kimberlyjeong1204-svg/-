@@ -11,16 +11,15 @@ import { formatTime } from '../../lib/useSession';
 import { HIT, radius, states, type } from '../../theme';
 
 /**
- * 숲에서 멍때리기
- * 기본은 시간 제한 없이 숲에 머무는 것입니다. 타이머는 선택(1·3·5·10분)이고 쉬는 중에도 바꿀 수 있습니다.
- * 시간이 다 되면 알람 없이 짧은 문구만 보이고, 숲으로 돌아갑니다.
+ * 숲에 머물기
+ * 기본은 시간 제한 없이 숲에 머무는 것입니다. 타이머는 선택(30초·1분·3분)이고 쉬는 중에도 바꿀 수 있습니다.
+ * 시간이 다 되면 알람 없이 짧은 문구만 보이고, 숲으로 돌아갑니다. 숲소리와 날씨는 그대로 이어집니다.
  */
 const OPTIONS: { value: number | null; label: string }[] = [
   { value: null, label: '없음' },
-  { value: 1, label: '1분' },
-  { value: 3, label: '3분' },
-  { value: 5, label: '5분' },
-  { value: 10, label: '10분' },
+  { value: 30, label: '30초' },
+  { value: 60, label: '1분' },
+  { value: 180, label: '3분' },
 ];
 
 export default function ForestStay() {
@@ -35,8 +34,7 @@ export default function ForestStay() {
     if (timer.state !== 'done') return;
     const t = setTimeout(() => {
       resetRef.current();
-      if (router.canGoBack()) router.back();
-      else router.replace('/forest');
+      router.dismissTo('/forest');
     }, 3600);
     return () => clearTimeout(t);
   }, [timer.state]);
@@ -79,7 +77,7 @@ export default function ForestStay() {
           <Text style={styles.label}>타이머</Text>
           <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel="타이머">
             {OPTIONS.map((o) => {
-              const on = o.value === timer.minutes;
+              const on = o.value === timer.seconds;
               return (
                 <Pressable
                   key={o.label}

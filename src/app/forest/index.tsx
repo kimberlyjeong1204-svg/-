@@ -7,7 +7,7 @@ import { BreathIcon, CupIcon } from '../../components/icons';
 import { HIT, radius, type } from '../../theme';
 
 /**
- * 숲에 머물기 (숲 공간의 기본 화면)
+ * 나의 숲 (숲 공간의 기본 화면)
  * 아무것도 고르지 않아도 숲이 전체 화면에 보입니다. 아래의 활동 버튼은 몇 초 뒤 사라지고, 화면을 누르면 다시 보입니다.
  */
 export default function ForestHome() {
@@ -30,7 +30,7 @@ export default function ForestHome() {
           style={({ pressed }) => [styles.pill, pressed && styles.pressed]}
         >
           <CupIcon size={20} color={FOREST_UI.ink} />
-          <Text style={styles.pillText}>멍때리기</Text>
+          <Text style={styles.pillText}>숲에 머물기</Text>
         </Pressable>
       </Animated.View>
     </SafeAreaView>
