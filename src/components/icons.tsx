@@ -108,3 +108,13 @@ export function CheckIcon({ size = 16, color = colors.sageDeep }: P) {
     </Svg>
   );
 }
+
+export function MusicIcon({ size = 22, color = colors.textSoft }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M9 18V6l10-2v12" />
+      <Circle cx={6.5} cy={18} r={2.5} />
+      <Circle cx={16.5} cy={16} r={2.5} />
+    </Svg>
+  );
+}

@@ -27,7 +27,7 @@ export default function ZoneOut() {
   const [sound, setSound] = useSoundChoice();
   const session = useSession(durationSec);
   const { phase } = session;
-  useAmbience(phase, sound);
+  const { yieldedToMusic } = useAmbience(phase, sound);
 
   // 시간이 다 되면 문구 없이 화면을 흐리게 하고 조용히 홈으로 돌아갑니다.
   const contentOpacity = useRef(new Animated.Value(1)).current;
@@ -65,6 +65,7 @@ export default function ZoneOut() {
           <View style={styles.spacer} />
 
           <View style={styles.bottom}>
+            {yieldedToMusic && <Text style={styles.musicNote}>다른 앱 음악이 재생 중이라 빗소리는 꺼 두었어요.</Text>}
             <Pressable
               onPress={() => setHideTime(!hideTime)}
               accessibilityRole="button"
@@ -161,6 +162,7 @@ const styles = StyleSheet.create({
   spacer: { flex: 1 },
   bottom: { alignItems: 'center', gap: 20, paddingBottom: 72 },
   timeBtn: { minWidth: 140, minHeight: 52, alignItems: 'center', justifyContent: 'center' },
+  musicNote: { fontSize: 12.5, color: INK, opacity: 0.85, marginBottom: -8 },
   time: { fontSize: 30, letterSpacing: 1, color: INK, fontVariant: ['tabular-nums'] },
   timeHidden: { opacity: 0.45 },
 });

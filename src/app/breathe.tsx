@@ -50,7 +50,7 @@ export default function Breathe() {
 
   const session = useSession(durationSec, onFrame);
   const { phase } = session;
-  useAmbience(phase, sound);
+  const { yieldedToMusic } = useAmbience(phase, sound);
 
   useEffect(() => {
     if (phase === 'idle') {
@@ -109,6 +109,7 @@ export default function Breathe() {
         </View>
       ) : (
         <View style={styles.bottom}>
+          {yieldedToMusic && <Text style={styles.musicNote}>다른 앱 음악이 재생 중이라 빗소리는 꺼 두었어요.</Text>}
           <Text style={styles.time} accessibilityLabel={`남은 시간 ${formatTime(session.remainingSec)}`}>
             {formatTime(session.remainingSec)}
           </Text>
@@ -128,6 +129,7 @@ const styles = StyleSheet.create({
   cue: { maxWidth: 210, textAlign: 'center', fontSize: 16, lineHeight: 26, color: colors.text },
   doneText: { fontFamily: fonts.displayRegular, fontSize: 24, lineHeight: 34, color: colors.text },
   bottom: { alignItems: 'center', gap: 20, paddingBottom: 16 },
+  musicNote: { fontSize: 12.5, color: colors.textMuted, marginBottom: -8 },
   time: { fontSize: 30, letterSpacing: 1, color: colors.text, fontVariant: ['tabular-nums'] },
   guide: { marginTop: 8, paddingHorizontal: 32, textAlign: 'center', fontSize: 12.5, lineHeight: 21, color: colors.textMuted },
   bottomDone: { alignItems: 'center', paddingBottom: 48 },

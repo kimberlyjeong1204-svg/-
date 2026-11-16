@@ -12,7 +12,9 @@ const KEEP_AWAKE_TAG = 'shimpyo-session';
  * - 경과 시간은 실제 시각 차이로 누적하므로 화면 갱신이 늦어져도 시간이 틀어지지 않습니다.
  * - 매 프레임 `onFrame(경과ms)`을 불러 애니메이션을 그립니다. (리렌더링 없이)
  * - 남은 초가 바뀔 때만 화면을 다시 그립니다.
- * - 앱이 백그라운드로 가면 자동으로 일시정지합니다.
+ * - 음악 앱 등 다른 앱으로 잠깐 다녀와도 멈추지 않습니다. 실제 흐른 시간만큼 진행되어 있고,
+ *   그사이 시간이 다 되었으면 돌아왔을 때 끝난 상태로 보여 줍니다.
+ * - 제어 센터에서 곡을 넘길 때도 멈추지 않습니다.
  * - 진행 중에는 화면이 꺼지지 않게 합니다.
  */
 export function useSession(durationSec: number, onFrame?: (elapsedMs: number) => void) {
@@ -88,13 +90,16 @@ export function useSession(durationSec: number, onFrame?: (elapsedMs: number) =>
     [setPhaseBoth, stopLoop],
   );
 
-  // 앱이 백그라운드로 가면 일시정지
+  // 다른 앱에서 돌아오면 바로 화면을 맞춥니다. (화면 갱신 루프는 백그라운드에서 멈춰 있다가 이어집니다.)
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') pause();
+      if (state === 'active' && phaseRef.current === 'running') {
+        stopLoop();
+        rafRef.current = requestAnimationFrame(loop);
+      }
     });
     return () => sub.remove();
-  }, [pause]);
+  }, [loop, stopLoop]);
 
   // 진행 중에는 화면이 꺼지지 않게
   useEffect(() => {

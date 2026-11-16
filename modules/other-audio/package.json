@@ -1,0 +1,7 @@
+{
+  "name": "other-audio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "다른 앱의 음악 재생 여부를 알려 주는 쉼표. 전용 iOS 모듈",
+  "main": "index.ts"
+}

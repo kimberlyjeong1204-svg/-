@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CheckIcon, SoundOffIcon, SoundOnIcon } from './icons';
+import { CheckIcon, MusicIcon, SoundOffIcon, SoundOnIcon } from './icons';
 import { HIT, colors } from '../theme';
-import { SOUND_OPTIONS, soundLabel, type SoundKey } from '../audio/sounds';
+import { SOUND_OPTIONS, isAmbience, soundLabel, type SoundKey } from '../audio/sounds';
 
 type Props = {
   value: SoundKey;
@@ -15,7 +15,14 @@ type Props = {
 export function SoundPicker({ value, onChange, color = colors.textSoft }: Props) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const on = value !== 'none';
+  const icon =
+    value === 'myMusic' ? <MusicIcon color={color} /> : isAmbience(value) ? <SoundOnIcon color={color} /> : <SoundOffIcon color={color} />;
+  const note =
+    value === 'myMusic'
+      ? '다른 앱에서 음악을 틀어 두세요.\n쉼표.는 그 음악을 멈추지 않아요.'
+      : isAmbience(value)
+        ? '끝날 때 소리가 천천히 작아져요.\n다른 앱 음악이 나오면 빗소리는 쉬어요.'
+        : '쉼표.는 소리를 내지 않아요.';
 
   return (
     <>
@@ -26,7 +33,7 @@ export function SoundPicker({ value, onChange, color = colors.textSoft }: Props)
         accessibilityState={{ expanded: open }}
         style={({ pressed }) => [styles.button, pressed && styles.pressed]}
       >
-        {on ? <SoundOnIcon color={color} /> : <SoundOffIcon color={color} />}
+        {icon}
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -35,22 +42,24 @@ export function SoundPicker({ value, onChange, color = colors.textSoft }: Props)
           {SOUND_OPTIONS.map((o) => {
             const selected = o.key === value;
             return (
-              <Pressable
-                key={o.key}
-                accessibilityRole="menuitem"
-                accessibilityState={{ checked: selected }}
-                onPress={() => {
-                  onChange(o.key);
-                  setOpen(false);
-                }}
-                style={({ pressed }) => [styles.option, selected && styles.optionOn, pressed && styles.optionPressed]}
-              >
-                <Text style={styles.optionLabel}>{o.label}</Text>
-                {selected && <CheckIcon />}
-              </Pressable>
+              <View key={o.key}>
+                {o.key === 'myMusic' && <View style={styles.divider} />}
+                <Pressable
+                  accessibilityRole="menuitem"
+                  accessibilityState={{ checked: selected }}
+                  onPress={() => {
+                    onChange(o.key);
+                    setOpen(false);
+                  }}
+                  style={({ pressed }) => [styles.option, selected && styles.optionOn, pressed && styles.optionPressed]}
+                >
+                  <Text style={styles.optionLabel}>{o.label}</Text>
+                  {selected && <CheckIcon />}
+                </Pressable>
+              </View>
             );
           })}
-          <Text style={styles.note}>끝날 때 소리가 천천히 작아져요.</Text>
+          <Text style={styles.note}>{note}</Text>
         </View>
       </Modal>
     </>
@@ -63,7 +72,7 @@ const styles = StyleSheet.create({
   menu: {
     position: 'absolute',
     right: 16,
-    width: 212,
+    width: 228,
     padding: 6,
     borderRadius: 18,
     backgroundColor: colors.card,
@@ -84,6 +93,7 @@ const styles = StyleSheet.create({
   },
   optionOn: { backgroundColor: '#EEF1EA' },
   optionPressed: { backgroundColor: '#F3F0E8' },
+  divider: { height: 1, backgroundColor: '#EFEAE0', marginHorizontal: 8, marginVertical: 4 },
   optionLabel: { fontSize: 15, color: colors.text },
   note: { marginHorizontal: 12, marginVertical: 6, fontSize: 11.5, lineHeight: 17, color: colors.textMuted },
 });

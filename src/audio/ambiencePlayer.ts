@@ -1,5 +1,5 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
-import { AMBIENCES, type Ambience, type SoundKey } from './sounds';
+import { AMBIENCES, isAmbience, type Ambience, type SoundKey } from './sounds';
 
 /**
  * 환경음 재생기 (앱 전체에서 하나만 사용)
@@ -65,7 +65,7 @@ class AmbiencePlayer {
 
   /** 휴식을 시작할 때. 소리를 고르지 않았으면 아무것도 하지 않습니다. */
   async start(key: SoundKey, fadeInMs = 1500) {
-    if (key === 'none') {
+    if (!isAmbience(key)) {
       this.fadeOutAndStop(600);
       return;
     }
@@ -75,8 +75,9 @@ class AmbiencePlayer {
     }
 
     const gen = ++this.generation;
-    // 다른 소리가 나고 있으면 짧게 줄이며 정리합니다.
+    // 다른 소리가 나고 있으면 정리합니다.
     this.releaseNow();
+    this.paused = false;
     await this.ensureMode();
     if (gen !== this.generation) return;
 
@@ -91,13 +92,14 @@ class AmbiencePlayer {
     this.voices = voices;
     this.active = 0;
     this.crossfading = false;
-    this.paused = false;
 
     const first = voices[0];
     await waitUntilLoaded(first.player);
     if (gen !== this.generation) return;
     await safeSeek(first.player, track.loopStart);
     if (gen !== this.generation) return;
+    // 불러오는 사이에 일시정지가 요청되었으면 재생하지 않고 기다립니다.
+    if (this.paused) return;
     first.player.play();
     this.tweenTo(first, 1, fadeInMs, linear);
     this.ensureTimer();
@@ -105,8 +107,9 @@ class AmbiencePlayer {
 
   /** 휴식을 일시정지할 때: 짧게 줄인 뒤 멈춤 */
   pause(fadeMs = 500) {
-    if (!this.voices || this.paused) return;
+    if (this.paused) return;
     this.paused = true;
+    if (!this.voices) return;
     for (const v of this.voices) {
       if (isSounding(v)) {
         this.tweenTo(v, 0, fadeMs, linear, () => {
@@ -127,6 +130,10 @@ class AmbiencePlayer {
     other.level = 0;
     other.player.volume = 0;
     if (other.player.playing) other.player.pause();
+    if (this.track && v.player.currentTime < this.track.loopStart) {
+      // 한 번도 재생되지 않은 상태라면 반복 구간 시작으로 옮깁니다.
+      void safeSeek(v.player, this.track.loopStart);
+    }
     v.player.play();
     this.tweenTo(v, 1, fadeInMs, linear);
     this.ensureTimer();
@@ -152,10 +159,15 @@ class AmbiencePlayer {
     if (pending === 0) this.releaseNow();
   }
 
+  /** 지금 재생 중인지 (일시정지·정지 상태가 아님) */
+  get isPlaying(): boolean {
+    return this.voices != null && !this.paused;
+  }
+
   /** 휴식 중에 다른 소리를 고른 경우 */
   async switchTo(key: SoundKey, playing: boolean) {
     if (key === this.currentKey) return;
-    if (key === 'none') {
+    if (!isAmbience(key)) {
       this.fadeOutAndStop(800);
       return;
     }

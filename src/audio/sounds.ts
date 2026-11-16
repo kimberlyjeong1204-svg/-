@@ -4,12 +4,24 @@
  * 앱 안에서 배경음으로만 재생하며, 음원을 따로 내보내거나 내려받는 기능은 없습니다.
  */
 
-export type SoundKey = 'none' | 'rain' | 'lightRain';
+/**
+ * - none: 소리 없음
+ * - rain / lightRain: 앱에 들어 있는 환경음
+ * - myMusic: 내가 듣던 음악과 함께. 쉼표.는 소리를 내지 않고, 다른 앱 음악을 건드리지 않습니다.
+ *   (외부 음악을 쉼표.가 직접 재생하거나 내려받지 않습니다.)
+ */
+export type SoundKey = 'none' | 'rain' | 'lightRain' | 'myMusic';
 
-export const SOUND_KEYS: readonly SoundKey[] = ['none', 'rain', 'lightRain'];
+export const SOUND_KEYS: readonly SoundKey[] = ['none', 'rain', 'lightRain', 'myMusic'];
+
+export type AmbienceKey = 'rain' | 'lightRain';
+
+export function isAmbience(key: SoundKey): key is AmbienceKey {
+  return key === 'rain' || key === 'lightRain';
+}
 
 export type Ambience = {
-  key: Exclude<SoundKey, 'none'>;
+  key: AmbienceKey;
   label: string;
   // require()로 불러온 앱 내장 음원
   source: number;
@@ -29,7 +41,7 @@ export type Ambience = {
  * - Light rain looping: 96.0초, 통합 음량 -32.4 LUFS, 앞뒤 페이드 없음(이음새 자연스러움)
  * 체감 크기를 맞추려고 Long rain을 약 4.2dB 낮춥니다. (0.8 × 10^(-4.2/20) ≈ 0.49)
  */
-export const AMBIENCES: Record<Ambience['key'], Ambience> = {
+export const AMBIENCES: Record<AmbienceKey, Ambience> = {
   rain: {
     key: 'rain',
     label: '잔잔한 비',
@@ -54,6 +66,7 @@ export const SOUND_OPTIONS: { key: SoundKey; label: string }[] = [
   { key: 'none', label: '소리 없음' },
   { key: 'rain', label: AMBIENCES.rain.label },
   { key: 'lightRain', label: AMBIENCES.lightRain.label },
+  { key: 'myMusic', label: '내 음악과 함께' },
 ];
 
 export function soundLabel(key: SoundKey) {
