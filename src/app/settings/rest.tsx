@@ -98,7 +98,7 @@ export default function RestAlarmSettings() {
         visible={picking != null}
         title={picking === 'end' ? '종료 시각' : '시작 시각'}
         value={picking === 'end' ? s.endMin : s.startMin}
-        minuteStep={60}
+        minuteStep={5}
         onClose={() => setPicking(null)}
         onDone={(min) => {
           setS(picking === 'end' ? { ...s, endMin: min } : { ...s, startMin: min });
