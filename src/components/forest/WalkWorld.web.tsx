@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForestSpace } from './ForestSpace';
 import { FOREST_TEXT, ForestButton } from './ui';
 import { WindChime } from './WindChime';
 import { useReduceMotion } from '../BreathCircle';
+import { goHome } from '../../lib/navigation';
 import { setWalkMix, startSteps, stopSteps, stopWalk, type WalkMix } from '../../audio/walkSound';
 
 /**
@@ -18,11 +19,19 @@ import { setWalkMix, startSteps, stopSteps, stopWalk, type WalkMix } from '../..
  * - 장소: 폭포 앞·큰 나무 아래에 가까워지면 천천히 멈춤 → 「잠시 앉기」(눈높이 1.05m로 낮아짐) → 「일어나기」
  * - 충돌: 길 가장자리, 나무 둥치, 앉을 바위·벤치, 큰 나무 둥치는 지나갈 수 없음
  * - 소리: 걷는 동안만 발소리. 폭포·새·잎소리는 실제 거리에 따라 계속 변함(숲 기본 자연음은 그대로)
+ * - 길 끝: 동굴 입구(바위 사이 어두운 입구와 장작불 빛) 앞에서 멈춤 → 「돌아가기」(뒤로 돌아 왔던 길을 걸음) ·
+ *   「동굴 들어가기」 · 「숲 나가기」(홈). 돌아와 시작점에 닿으면 「다시 걷기」 · 「숲 나가기」
+ * - 아래로 밀면 천천히 뒷걸음(방향은 그대로), 「돌아가기」는 몸을 돌려 반대로 걷기 — 둘은 다름
+ * - 「나가기」로 언제든 숲·홈으로. 많이 걸은 뒤 위쪽 뒤로 가기를 누르면 「산책을 마칠까요?」 확인(걷던 자리는 기억하지 않음)
+ * - 다시 들어오면 늘 시작점에서 새 산책
  * 그림(나무·바위·폭포·길)은 코드로 만든 단순한 형태라 숲의 사실적인 화풍과 다릅니다. 최종 3D 자산으로 교체 예정.
  * iOS 앱은 장면 이어 보기(WalkScenes)를 씀.
  */
 
-const PATH_LEN = 130;
+const PATH_LEN = 136;
+const START_S = 2;
+const END_S = 119; // 동굴 입구 앞에서 멈추는 곳
+const CAVE_S = 130; // 동굴 입구
 const PATH_HALF = 1.15; // 걸을 수 있는 길 폭의 절반(m)
 const EYE = 1.6;
 const SIT_EYE = 1.05;
@@ -36,18 +45,22 @@ const pathAngle = (s: number) => Math.atan(pathX(s + 0.5) - pathX(s - 0.5)); // 
 type PlaceId = 'waterfall' | 'tree';
 const PLACES: Record<PlaceId, { stopS: number; side: 1 | -1 }> = {
   waterfall: { stopS: 60, side: 1 },
-  tree: { stopS: 117, side: -1 },
+  tree: { stopS: 108, side: -1 },
 };
 
-type WorldState = { s: number; lat: number; yaw: number; speed: number; arrived: PlaceId | null; sitting: boolean; eye: number };
+type Spot = PlaceId | 'end' | 'start';
+type WorldState = { s: number; lat: number; yaw: number; speed: number; arrived: Spot | null; sitting: boolean; eye: number; dir: 1 | -1; face: number };
+type WorldApi = { dispose: () => void; turnAround: () => void; state: () => WorldState };
 
 export function WalkWorld() {
-  const { uiOpacity, uiHidden, wakeUi, setHideDelay, soundOn, soundStatus } = useForestSpace();
+  const { uiOpacity, uiHidden, wakeUi, setHideDelay, soundOn, soundStatus, setLeaveGuard, setAutoHide } = useForestSpace();
   const { width } = useWindowDimensions();
   const reduceMotion = useReduceMotion();
   const audible = soundOn && soundStatus === 'on';
   const boxRef = useRef<any>(null); // 웹에서는 div
-  const [arrived, setArrived] = useState<PlaceId | null>(null);
+  const [arrived, setArrived] = useState<Spot | null>(null);
+  const [exitOpen, setExitOpen] = useState(false);
+  const api = useRef<WorldApi | null>(null);
   const [sitting, setSitting] = useState(false);
   const [moved, setMoved] = useState(false);
   const [ready, setReady] = useState(false);
@@ -66,6 +79,33 @@ export function WalkWorld() {
       return () => setHideDelay(4000);
     }, [setHideDelay, wakeUi]),
   );
+  // 위쪽 뒤로 가기: 많이 걸었으면 바로 나가지 않고 확인 (걷던 자리는 기억하지 않음)
+  const exitRef = useRef(exitOpen);
+  exitRef.current = exitOpen;
+  useFocusEffect(
+    useCallback(() => {
+      setLeaveGuard(() => {
+        if (exitRef.current) {
+          setExitOpen(false);
+          return false;
+        }
+        const st = api.current?.state();
+        if (st && (st.s > START_S + 5 || st.dir < 0)) {
+          setExitOpen(true);
+          return false;
+        }
+        return true;
+      });
+      return () => setLeaveGuard(null);
+    }, [setLeaveGuard]),
+  );
+  // 고르는 창이 떠 있는 동안에는 메뉴가 숨지 않음
+  const choosing = exitOpen || arrived === 'end' || arrived === 'start';
+  useEffect(() => {
+    setAutoHide(!choosing);
+    if (choosing) wakeUi();
+    return () => setAutoHide(true);
+  }, [choosing, setAutoHide, wakeUi]);
   useEffect(() => () => stopWalk(1200), []);
   useEffect(() => {
     if (!audible) stopWalk(600);
@@ -79,7 +119,7 @@ export function WalkWorld() {
     import('three')
       .then((THREE) => {
         if (!alive) return;
-        cleanup = buildWorld(THREE, host, {
+        const a = buildWorld(THREE, host, {
           onArrive: (p) => {
             setArrived(p);
             wakeUi();
@@ -89,12 +129,15 @@ export function WalkWorld() {
           isAudible: () => audibleRef.current,
           reduce: () => reduceRef.current,
         });
+        api.current = a;
+        cleanup = a.dispose;
         setReady(true);
       })
       .catch(() => setFailed(true));
     return () => {
       alive = false;
       cleanup();
+      api.current = null;
     };
     // 한 번만 만듦
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -120,17 +163,43 @@ export function WalkWorld() {
       <SafeAreaView style={styles.safe} edges={['bottom']} pointerEvents="box-none">
         <View style={styles.spacer} pointerEvents="none" />
         <Animated.View style={[styles.bottom, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
-          {arrived && (sitting ? <ForestButton label="일어나기" variant="solid" onPress={() => sit(false)} /> : <ForestButton label="잠시 앉기" variant="solid" onPress={() => sit(true)} />)}
+          {arrived === 'end' && (
+            <View style={styles.row}>
+              <ForestButton label="돌아가기" variant="solid" size="sm" onPress={() => api.current?.turnAround()} accessibilityHint="몸을 돌려 왔던 숲길을 거꾸로 걸어요" />
+              <ForestButton label="동굴 들어가기" variant="solid" size="sm" onPress={() => router.replace('/forest/cave')} />
+              <ForestButton label="숲 나가기" variant="solid" size="sm" onPress={goHome} accessibilityHint="홈으로 가요" />
+            </View>
+          )}
+          {arrived === 'start' && (
+            <View style={styles.row}>
+              <ForestButton label="다시 걷기" variant="solid" size="sm" onPress={() => api.current?.turnAround()} />
+              <ForestButton label="숲 나가기" variant="solid" size="sm" onPress={goHome} accessibilityHint="홈으로 가요" />
+            </View>
+          )}
+          {(arrived === 'waterfall' || arrived === 'tree') &&
+            (sitting ? <ForestButton label="일어나기" variant="solid" onPress={() => sit(false)} /> : <ForestButton label="잠시 앉기" variant="solid" onPress={() => sit(true)} />)}
           {!moved && !arrived && <Text style={FOREST_TEXT.caption}>화면을 누른 채 위로 밀면 걸어요 · 좌우로 밀면 방향을 바꿔요</Text>}
+          {arrived !== 'end' && arrived !== 'start' && <ForestButton label="나가기" variant="quiet" size="sm" onPress={() => setExitOpen(true)} />}
           {failed && <Text style={FOREST_TEXT.caption}>이 기기에서는 3D 숲길을 열 수 없어요.</Text>}
         </Animated.View>
       </SafeAreaView>
+
+      {exitOpen && (
+        <View style={styles.sheetWrap} pointerEvents="box-none">
+          <View style={styles.sheet} accessibilityRole="alert">
+            <Text style={[FOREST_TEXT.cue, styles.sheetText]}>산책을 마칠까요?{'\n'}걷던 자리는 기억되지 않아요.</Text>
+            <ForestButton label="숲으로 돌아가기" variant="solid" size="sm" onPress={() => router.dismissTo('/forest')} />
+            <ForestButton label="홈으로 나가기" variant="solid" size="sm" onPress={goHome} />
+            <ForestButton label="계속 걷기" variant="quiet" size="sm" onPress={() => setExitOpen(false)} />
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
 type Hooks = {
-  onArrive: (p: PlaceId | null) => void;
+  onArrive: (p: Spot | null) => void;
   onMoveStart: () => void;
   isSitting: () => boolean;
   isAudible: () => boolean;
@@ -158,7 +227,7 @@ const rnd = () => {
   return (seed - 1) / 2147483646;
 };
 
-function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: Hooks) {
+function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: Hooks): WorldApi {
   seed = 7;
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'low-power' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
@@ -247,7 +316,8 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
   const clear = (x: number, z: number) => {
     // 폭포 앞·큰 나무 아래 빈터
     const w = world(PLACES.waterfall.stopS + 6, 0), t = world(PLACES.tree.stopS + 3, 0);
-    return Math.hypot(x - (w.x + 6), z - w.z) > 9 && Math.hypot(x - (t.x - 3), z - t.z) > 7;
+    const cv = world(CAVE_S, 0);
+    return Math.hypot(x - (w.x + 6), z - w.z) > 9 && Math.hypot(x - (t.x - 3), z - t.z) > 7 && Math.hypot(x - cv.x, z - cv.z) > 7;
   };
 
   // 나무: 둥치(나무껍질 무늬) + 어두운 잎 덩어리. 길에서 멀수록 많이
@@ -439,8 +509,51 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
   const flies = new THREE.Points(flyGeo, new THREE.PointsMaterial({ size: 0.18, map: flyTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
   scene.add(flies);
 
+  // 길 끝 동굴 입구: 바위 더미 사이 어두운 입구, 안쪽에서 장작불 빛이 일렁임
+  const cv = world(CAVE_S, 0);
+  const caveRock = new THREE.MeshLambertMaterial({ color: 0x3a3f3b, flatShading: true });
+  const caveGroup = new THREE.Group();
+  caveGroup.position.set(cv.x, 0, cv.z);
+  caveGroup.rotation.y = -pathAngle(CAVE_S);
+  scene.add(caveGroup);
+  const rockAt = (x: number, y: number, z: number, sx: number, sy: number, sz: number) => {
+    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(1, 1), caveRock);
+    m.position.set(x, y, z);
+    m.scale.set(sx, sy, sz);
+    m.rotation.set(rnd(), rnd() * 6, rnd());
+    caveGroup.add(m);
+  };
+  // 좌우 기둥 바위, 위를 덮는 큰 바위, 뒤쪽 산처럼 쌓인 바위
+  rockAt(-2.6, 1.6, 0, 1.6, 2.4, 1.6);
+  rockAt(-3.8, 0.9, -0.6, 1.4, 1.6, 1.5);
+  rockAt(2.6, 1.7, 0, 1.7, 2.5, 1.6);
+  rockAt(3.9, 1.0, -0.5, 1.5, 1.7, 1.4);
+  rockAt(0, 4.1, -0.3, 3.6, 1.5, 1.9);
+  rockAt(-1.4, 5.4, -1.6, 3, 2, 2.4);
+  rockAt(1.8, 5.6, -1.8, 3.2, 2.2, 2.3);
+  for (let i = 0; i < 6; i++) rockAt((rnd() - 0.5) * 12, 2 + rnd() * 5, -3 - rnd() * 3, 3 + rnd() * 2, 2.5 + rnd() * 2, 2.5);
+  const mouth = new THREE.Mesh(new THREE.CircleGeometry(1, 24), new THREE.MeshBasicMaterial({ color: 0x050403 }));
+  mouth.scale.set(1.7, 2.3, 1);
+  mouth.position.set(0, 1.3, -0.4);
+  caveGroup.add(mouth);
+  const emberTex = canvasTex(THREE, 64, 64, (g) => {
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,170,80,0.9)');
+    gr.addColorStop(0.4, 'rgba(230,110,40,0.35)');
+    gr.addColorStop(1, 'rgba(200,80,20,0)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 64, 64);
+  }, [1, 1]);
+  const caveGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: emberTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+  caveGlow.position.set(0, 0.9, -0.9);
+  caveGlow.scale.set(1.8, 1.6, 1);
+  caveGroup.add(caveGlow);
+  const caveLight = new THREE.PointLight(0xff8a3c, 6, 9, 1.6);
+  caveLight.position.set(0, 1.0, 0.6);
+  caveGroup.add(caveLight);
+
   // ─── 걷기 ───
-  const st: WorldState = { s: 2, lat: 0, yaw: 0, speed: 0, arrived: null, sitting: false, eye: EYE };
+  const st: WorldState = { s: START_S, lat: 0, yaw: 0, speed: 0, arrived: null, sitting: false, eye: EYE, dir: 1, face: 0 };
   let target = 0; // 목표 속도(손가락)
   let held = false, sx = 0, sy = 0, lastX = 0, startYaw = 0;
   let lockUntilRelease = false;
@@ -490,6 +603,9 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
     st.s = s;
     st.lat = 0;
     st.yaw = 0;
+    st.dir = 1;
+    st.face = 0;
+    st.arrived = null;
     passed.waterfall = s > PLACES.waterfall.stopS + 0.5;
     passed.tree = s > PLACES.tree.stopS + 0.5;
   };
@@ -499,6 +615,18 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
 
   let blocked = false;
   let turn: { from: number; to: number; t: number } | null = null;
+  // 돌아서기(돌아가기·다시 걷기): 몸을 천천히 반 바퀴 돌림
+  let about: { from: number; to: number; yaw0: number; t: number } | null = null;
+  const turnAround = () => {
+    if (about) return;
+    st.dir = st.dir === 1 ? -1 : 1;
+    st.arrived = null;
+    st.sitting = false;
+    turn = null;
+    about = { from: st.face, to: st.dir === 1 ? 0 : Math.PI, yaw0: st.yaw, t: 0 };
+    hooks.onArrive(null);
+  };
+  w.__shimpyoWorldTurn = turnAround;
   let last = performance.now();
   let raf = 0;
   let mixTimer = 0;
@@ -525,6 +653,7 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
     // 장소에 가까워지면 자연스럽게 멈춤
     for (const id of ['waterfall', 'tree'] as PlaceId[]) {
       const pl = PLACES[id];
+      if (st.dir < 0) break; // 돌아가는 길에는 장소에서 멈추지 않음
       if (passed[id]) {
         if (st.s < pl.stopS - 8) passed[id] = false;
         continue;
@@ -545,13 +674,27 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
         hooks.onArrive(id);
       }
     }
+    // 길 끝(동굴 입구)·시작점: 가까워지면 천천히, 닿으면 멈추고 고르기
+    const endS = st.dir > 0 ? END_S : START_S;
+    const toEnd = (endS - st.s) * st.dir;
+    if (want > 0 && toEnd < 5) want = Math.min(want, Math.max(0.6, toEnd * 0.6));
+    if (toEnd <= 0.05 && st.arrived !== (st.dir > 0 ? 'end' : 'start') && !about) {
+      st.arrived = st.dir > 0 ? 'end' : 'start';
+      st.speed = 0;
+      want = 0;
+      target = 0;
+      lockUntilRelease = held;
+      if (st.dir > 0) turn = { from: st.yaw, to: 0, t: 0 }; // 동굴 입구를 바라봄
+      hooks.onArrive(st.arrived);
+    }
+    if (about) want = 0;
     // 가속은 부드럽게, 손을 떼면 일정하게 감속(최고 속도에서 약 0.3초)
     if (want === 0) {
       const dec = 8 * dt;
       st.speed = Math.abs(st.speed) <= dec ? 0 : st.speed - Math.sign(st.speed) * dec;
     } else st.speed += (want - st.speed) * Math.min(1, dt * 3);
-    const ns = Math.max(0, Math.min(PATH_LEN - 4, st.s + st.speed * Math.cos(st.yaw) * dt));
-    const nl = Math.max(-PATH_HALF, Math.min(PATH_HALF, st.lat + st.speed * Math.sin(-st.yaw) * dt));
+    const ns = Math.max(START_S, Math.min(END_S, st.s + st.speed * Math.cos(st.yaw) * dt * st.dir));
+    const nl = Math.max(-PATH_HALF, Math.min(PATH_HALF, st.lat + st.speed * Math.sin(-st.yaw) * dt * st.dir));
     if (!collide(ns, nl)) {
       st.s = ns;
       st.lat = nl;
@@ -561,7 +704,8 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
       blocked = want > 0;
     }
     if (st.speed !== 0) blocked = false;
-    if (st.arrived && Math.abs(st.s - PLACES[st.arrived].stopS) > 1.5) {
+    const spotS = st.arrived === 'end' ? END_S : st.arrived === 'start' ? START_S : st.arrived ? PLACES[st.arrived].stopS : 0;
+    if (st.arrived && Math.abs(st.s - spotS) > 1.5) {
       st.arrived = null;
       hooks.onArrive(null);
     }
@@ -575,12 +719,19 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
         if (turn.t >= 1) turn = null;
       }
     }
+    if (about) {
+      about.t = Math.min(1, about.t + dt / 1.5);
+      const e = about.t * about.t * (3 - 2 * about.t);
+      st.face = about.from + (about.to - about.from) * e;
+      st.yaw = about.yaw0 * (1 - e);
+      if (about.t >= 1) about = null;
+    }
     // 눈높이(앉기)
     st.eye += ((st.sitting ? SIT_EYE : EYE) - st.eye) * Math.min(1, dt * 4);
 
     // 카메라: 진행 방향 + 시선 회전, 흔들림 없음
     const p = world(st.s, st.lat);
-    const heading = -pathAngle(st.s) + st.yaw;
+    const heading = -pathAngle(st.s) + st.yaw + st.face;
     camera.position.set(p.x, st.eye, p.z);
     camera.rotation.order = 'YXZ';
     camera.rotation.set(PITCH, heading, 0);
@@ -614,6 +765,7 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
     // 살아 있는 것: 물 흐름·물안개·반딧불이 (카메라는 그대로)
     const t = now / 1000;
     waterUniforms.t.value = t;
+    caveLight.intensity = 5 + 1.6 * Math.sin(t * 2.3) + 0.8 * Math.sin(t * 5.7 + 1);
     mists.forEach((m, i) => {
       m.position.y = 0.7 + 0.25 * Math.sin(t * 0.3 + i);
     });
@@ -630,7 +782,7 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
   };
   raf = requestAnimationFrame(frame);
 
-  return () => {
+  const dispose = () => {
     cancelAnimationFrame(raf);
     ro.disconnect();
     canvas.removeEventListener('pointerdown', onDown);
@@ -650,7 +802,9 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
     delete w.__shimpyoWorld;
     delete w.__shimpyoWorldTeleport;
     delete w.__shimpyoWorldSit;
+    delete w.__shimpyoWorldTurn;
   };
+  return { dispose, turnAround, state: () => st };
 }
 
 const styles = StyleSheet.create({
@@ -660,4 +814,8 @@ const styles = StyleSheet.create({
   spacer: { flex: 1 },
   bottom: { alignItems: 'center', gap: 10, paddingBottom: 28, paddingHorizontal: 16 },
   chime: { position: 'absolute', top: 0, left: 0, right: 0 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
+  sheetWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  sheet: { width: '100%', maxWidth: 320, padding: 22, gap: 10, borderRadius: 20, backgroundColor: 'rgba(14, 18, 20, 0.9)', alignItems: 'stretch' },
+  sheetText: { textAlign: 'center', marginBottom: 6 },
 });

@@ -3,18 +3,27 @@
  * 좌표는 그림 기준 비율(0~1).
  *
  * 지금 그림: 소유자가 고른 동굴(cave-girl.webp, 1672×941 가로) — 거대한 바위 동굴·천장 빛 기둥,
- * 방석 위 여자아이 뒷모습과 장작불이 그림에 들어 있음. 불은 그림에 있으므로 코드는 불빛 일렁임과 불티만 얹음.
+ * 방석 위 여자아이 뒷모습과 장작불. 움직이는 불꽃과 그림 속 멈춘 불꽃이 겹치지 않도록,
+ * 화면에는 불꽃만 지운 사본(cave-girl-nofire.webp, 원본은 그대로 보관)을 쓰고 불꽃은 코드(fireRenderer)가 그림.
  */
 export const CAVE_IMAGE = {
-  source: require('../../../assets/cave/cave-girl.webp'),
+  source: require('../../../assets/cave/cave-girl-nofire.webp'),
+  /** iOS 앱: 아직 코드 불꽃이 없어 불꽃이 그려진 원본을 씀 */
+  nativeSource: require('../../../assets/cave/cave-girl.webp'),
   width: 1672,
   height: 941,
   /** 그림에 장작더미가 없으면 true (코드로 장작을 그림) */
   drawLogs: false,
 };
 
-/** 장작불 자리(불꽃이 피어오르는 바닥 가운데). scale: 그림 속 불 크기에 맞춘 불꽃 크기 */
-export const FIRE = { x: 0.355, y: 0.795, scale: 0.45, sparksOnly: true };
+/** 장작불 자리(불꽃이 피어오르는 장작 위 가운데). scale: 그림 1px당 불꽃 단위(u) — 불꽃 높이 약 180u */
+export const FIRE = { x: 0.355, y: 0.782, scale: 0.45 };
+
+/**
+ * 「불 가까이 보기」에 쓸 실제 불꽃 영상(끊김 없이 반복되는 mp4/webm, 사람·손 없이 장작불만).
+ * 받으면 require('../../../assets/cave/fire-loop.mp4')처럼 넣으면 코드로 그린 불 대신 영상이 나옴. 지금은 없음(null)
+ */
+export const FIRE_VIDEO: number | null = null;
 
 /** 방석에 앉은 아이(조약돌이 날아가지 않게 피할 곳) */
 export const CHILD = { x: 0.28, y: 0.77, w: 0.09, h: 0.16 };

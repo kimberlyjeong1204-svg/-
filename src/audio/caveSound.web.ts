@@ -157,6 +157,37 @@ export function fireFlare() {
   src.start(c.currentTime, 0, 3);
 }
 
+let lastLog = 0;
+/** 장작이 불 안에 놓임: 둔탁하게 닿는 소리 + 타닥 몇 번 + 잠깐 화르륵 (0.6초 안에 다시 부르면 무시 → 겹침 방지) */
+export function logDrop() {
+  const c = getContext();
+  if (!c || !noise || !master || !reverbIn) return;
+  if (c.currentTime - lastLog < 0.6) return;
+  lastLog = c.currentTime;
+  const at = c.currentTime + 0.01;
+  // 나무가 닿는 둔탁한 소리
+  const o = c.createOscillator();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(130, at);
+  o.frequency.exponentialRampToValueAtTime(70, at + 0.12);
+  const og = c.createGain();
+  og.gain.setValueAtTime(0.0001, at);
+  og.gain.linearRampToValueAtTime(0.32, at + 0.004);
+  og.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
+  o.connect(og);
+  og.connect(master);
+  const w = c.createGain();
+  w.gain.value = 0.35;
+  og.connect(w).connect(reverbIn);
+  o.start(at);
+  o.stop(at + 0.25);
+  noiseBurst(c, at, 0.05, 700, 1.4, 0.22, 0.3);
+  // 숯이 흩어지는 타닥
+  for (let i = 0; i < 6; i++) noiseBurst(c, at + 0.08 + Math.random() * 0.5, 0.008 + Math.random() * 0.02, 1800 + Math.random() * 3000, 1.5, 0.1 + Math.random() * 0.12, 0.2, (Math.random() - 0.5) * 0.4);
+  // 불이 잠깐 커짐
+  fireFlare();
+}
+
 /** 종이 찢는 소리 */
 export function paperTear() {
   const c = getContext();

@@ -7,6 +7,7 @@ export function startCaveFire(_fadeMs = 3000) {}
 export function stopCaveFire(_fadeMs = 2500) {}
 export function fireFlare() {}
 export function paperTear() {}
+export function logDrop() {}
 export function pebbleHit(_pan = 0, _size = 1) {}
 export function caveFireActive() {
   return false;

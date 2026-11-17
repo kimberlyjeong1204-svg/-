@@ -7,7 +7,7 @@ import { CAVE_IMAGE, CAVE_PAN, FIRE, caveCover } from './caveConfig';
  * 동굴 화면 (iOS 앱) — 바위 그림 + 일렁이는 불빛과 단순한 불꽃.
  * 입자 불꽃은 웹앱(CaveScene.web.tsx)에 먼저 넣었고, 앱에는 이후 단계에서 같은 모양으로 연결합니다.
  */
-export function CaveScene({ reduceMotion, flare = 0 }: { reduceMotion: boolean; flare?: number }) {
+export function CaveScene({ reduceMotion, flare = 0 }: { reduceMotion: boolean; flare?: number; paused?: boolean }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const flick = useRef(new Animated.Value(1)).current;
   const boost = useRef(new Animated.Value(0)).current;
@@ -47,7 +47,7 @@ export function CaveScene({ reduceMotion, flare = 0 }: { reduceMotion: boolean; 
     <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       {size.w > 0 && (
         <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX: shift }] }]}>
-          <Image source={CAVE_IMAGE.source} style={{ position: 'absolute', left: c.ox, top: c.oy, width: CAVE_IMAGE.width * c.k, height: CAVE_IMAGE.height * c.k }} />
+          <Image source={CAVE_IMAGE.nativeSource} style={{ position: 'absolute', left: c.ox, top: c.oy, width: CAVE_IMAGE.width * c.k, height: CAVE_IMAGE.height * c.k }} />
           <Animated.View style={[StyleSheet.absoluteFill, { opacity: Animated.add(flick, Animated.multiply(boost, 0.5)) }]}>
             <Svg width={size.w} height={size.h}>
               <Defs>

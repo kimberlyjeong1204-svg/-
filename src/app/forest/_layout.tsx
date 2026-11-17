@@ -36,7 +36,7 @@ export default function ForestLayout() {
 }
 
 function ForestShell() {
-  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch, reportSound, setUiSuppressed } = useForestSpace();
+  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch, reportSound, setUiSuppressed, runLeaveGuard } = useForestSpace();
   const raining = weather === 'rain';
   const pathname = usePathname();
   // 동굴 안: 숲 그림은 쉬고, 숲소리는 아주 작게(장작불 소리가 이어 받음), 비 소리는 멀어짐
@@ -137,6 +137,8 @@ function ForestShell() {
 
   // 홈에서 숨 고르기·숲에 머물기로 바로 들어와도, 뒤로 가면 숲 전체 화면으로
   const onBack = () => {
+    // 산책 중 확인창·불 가까이 보기 닫기처럼 화면이 먼저 처리할 일이 있으면 그쪽에 맡김
+    if (!runLeaveGuard()) return;
     if (atForestHome) goBack('/');
     else router.dismissTo('/forest');
   };
@@ -187,6 +189,7 @@ function ForestShell() {
               onPress={onBack}
               accessibilityRole="button"
               accessibilityLabel={atForestHome ? '숲에서 나가기' : inCave ? '동굴에서 나가기' : '숲으로 돌아가기'}
+              accessibilityHint={atForestHome ? '홈으로 가요' : '나의 숲 첫 화면으로 가요'}
               style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
             >
               <BackIcon color={FOREST_UI.ink} />
