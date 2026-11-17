@@ -68,7 +68,8 @@ function ForestShell() {
   const pathname = usePathname();
   const atForestHome = pathname === '/forest';
 
-  // 소리를 처음 켤 때 한 번만: 무음 모드 안내 (웹에서는 무음 스위치 상태를 알 수 없음)
+  // 위쪽 버튼으로 소리를 처음 켤 때 한 번만: 무음 모드 안내 (웹에서는 무음 스위치 상태를 알 수 없음)
+  // 입구 안내창에서 이미 「숲소리 켜고 들어가기」를 골랐다면 숲 안에서 같은 안내를 반복하지 않음
   const [hint, setHint] = useState<string | null>(null);
   const hintShown = useRef(false);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -77,10 +78,15 @@ function ForestShell() {
     if (hintTimer.current) clearTimeout(hintTimer.current);
     hintTimer.current = setTimeout(() => setHint(null), 4500);
   };
-  const changeSound = (on: boolean) => {
+  const changeSound = (on: boolean, from: 'prompt' | 'button' = 'button') => {
     setSoundOn(on);
     // 문 앞에서 소리를 고르면 그대로 문이 열림
     openGate(on);
+    if (from === 'prompt') {
+      // 입구에서 「숲소리 켜고 들어가기」를 골랐으면 숲 안에서 다시 안내하지 않음
+      if (on) hintShown.current = true;
+      return;
+    }
     if (on && !hintShown.current) {
       hintShown.current = true;
       showHint('소리가 들리지 않으면 무음 모드를 확인해 주세요.');
@@ -98,7 +104,20 @@ function ForestShell() {
     else router.dismissTo('/forest');
   };
 
-  const soundLabel = blocked ? '눌러서 소리 켜기' : status === 'starting' ? '소리 켜는 중' : soundOn ? '소리 끄기' : '소리 켜기';
+  /**
+   * 숲소리 버튼 네 가지 상태
+   * - 꺼짐: 「숲소리 켜기」 (메뉴가 숨어도 사라지지 않음)
+   * - 켜는 중: 「켜는 중」 (실제 소리가 확인될 때까지 켜짐으로 보이지 않음, 사라지지 않음)
+   * - 켜짐: 작은 아이콘만. 다른 메뉴와 함께 4초 뒤 숨음
+   * - 막힘(Safari 재생 차단): 「눌러서 숲소리 켜기」 (사라지지 않음, 누르는 순간 다시 재생)
+   */
+  const soundLabel = blocked ? '눌러서 숲소리 켜기' : status === 'starting' ? '켜는 중' : '숲소리 켜기';
+  const soundPinned = !audible; // 켜짐이 아니면 늘 보임
+  // 막 켜졌을 때: 버튼이 갑자기 사라지지 않도록 메뉴를 잠깐 보였다가 함께 천천히 숨김
+  useEffect(() => {
+    if (audible && !atGate) wakeUi();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audible]);
 
   return (
     <View
@@ -124,33 +143,42 @@ function ForestShell() {
       </View>
 
       <SafeAreaView edges={['top']} style={styles.topWrap} pointerEvents="box-none">
-        <Animated.View style={[styles.topBar, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
-          <Pressable
-            onPress={onBack}
-            accessibilityRole="button"
-            accessibilityLabel={atForestHome ? '숲에서 나가기' : '숲으로 돌아가기'}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-          >
-            <BackIcon color={FOREST_UI.ink} />
-          </Pressable>
-          <View style={styles.right}>
+        <View style={styles.topBar} pointerEvents="box-none">
+          <Animated.View style={{ opacity: uiOpacity }} pointerEvents={uiHidden ? 'none' : 'box-none'}>
             <Pressable
-              onPress={onSoundPress}
-              accessibilityRole="switch"
-              accessibilityLabel="숲 소리"
-              accessibilityHint={blocked ? '소리가 멈춰 있어요. 누르면 다시 켜요.' : undefined}
-              accessibilityState={{ checked: audible }}
-              aria-checked={audible}
-              style={({ pressed }) => [styles.soundPill, audible && styles.soundPillOn, pressed && styles.pressed]}
+              onPress={onBack}
+              accessibilityRole="button"
+              accessibilityLabel={atForestHome ? '숲에서 나가기' : '숲으로 돌아가기'}
+              style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
             >
-              {audible ? <SoundOnIcon size={20} color={FOREST_UI.ink} /> : <SoundOffIcon size={20} color={FOREST_UI.ink} />}
-              <Text style={styles.soundText}>{soundLabel}</Text>
+              <BackIcon color={FOREST_UI.ink} />
             </Pressable>
-            <ForestSoundButton value={settings} onChange={setSettings} masterOn={soundOn} onMasterChange={changeSound} trigger="settings"
-              note="숲에 머무는 동안 계속 들려요. 숲을 나가면 천천히 작아져요."
-            />
+          </Animated.View>
+          <View style={styles.right} pointerEvents="box-none">
+            <Animated.View style={{ opacity: soundPinned ? 1 : uiOpacity }} pointerEvents={!soundPinned && uiHidden ? 'none' : 'box-none'}>
+              <Pressable
+                onPress={onSoundPress}
+                accessibilityRole="switch"
+                accessibilityLabel="숲 소리"
+                accessibilityHint={blocked ? 'Safari가 소리를 멈췄어요. 누르면 다시 켜요.' : audible ? '누르면 숲소리를 꺼요' : undefined}
+                accessibilityState={{ checked: audible }}
+                aria-checked={audible}
+                style={({ pressed }) => [audible ? styles.soundCompact : styles.soundPill, blocked && styles.soundPillWarn, pressed && styles.pressed]}
+              >
+                {audible ? <SoundOnIcon size={20} color={FOREST_UI.ink} /> : <SoundOffIcon size={20} color={FOREST_UI.ink} />}
+                {!audible && <Text style={styles.soundText}>{soundLabel}</Text>}
+              </Pressable>
+            </Animated.View>
+            {/* 음량 세부 조절은 소리가 켜져 있을 때만, 다른 메뉴와 함께 숨음 */}
+            {audible && (
+              <Animated.View style={{ opacity: uiOpacity }} pointerEvents={uiHidden ? 'none' : 'box-none'}>
+                <ForestSoundButton value={settings} onChange={setSettings} masterOn={soundOn} onMasterChange={(on) => changeSound(on)} trigger="settings"
+                  note="숲에 머무는 동안 계속 들려요. 숲을 나가면 천천히 작아져요."
+                />
+              </Animated.View>
+            )}
           </View>
-        </Animated.View>
+        </View>
       </SafeAreaView>
 
       {gate === 'pending' && <View style={[StyleSheet.absoluteFill, styles.cover]} />}
@@ -168,12 +196,11 @@ function ForestShell() {
       )}
 
       {atGate ? null : blocked && !needsSoundPrompt ? (
-        // 다시 방문했을 때 브라우저가 소리를 막은 경우: 눌러서 다시 켜기
-        <View style={styles.hintWrap} pointerEvents="box-none">
-          <Pressable onPress={retry} accessibilityRole="button" style={({ pressed }) => [styles.hintBtn, pressed && styles.pressed]}>
-            <SoundOffIcon size={18} color={FOREST_UI.ink} />
-            <Text style={styles.hintBtnText}>숲소리가 멈춰 있어요. 눌러서 다시 켜기</Text>
-          </Pressable>
+        // Safari가 재생을 막은 경우: 위쪽 버튼을 누르면 다시 재생 (설명만 짧게)
+        <View style={styles.blockedNoteWrap} pointerEvents="none">
+          <Text style={styles.blockedNote} accessibilityLiveRegion="polite">
+            Safari가 숲소리를 잠시 멈췄어요
+          </Text>
         </View>
       ) : (
         (hint || yieldedToMusic) && (
@@ -185,7 +212,7 @@ function ForestShell() {
         )
       )}
 
-      {needsSoundPrompt && <SoundPrompt onChoose={changeSound} />}
+      {needsSoundPrompt && <SoundPrompt onChoose={(on) => changeSound(on, 'prompt')} />}
     </View>
   );
 }
@@ -211,20 +238,13 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: FOREST_UI.glass,
   },
-  soundPillOn: { backgroundColor: FOREST_UI.glassStrong },
+  soundPillWarn: { backgroundColor: 'rgba(10, 22, 24, 0.72)', borderWidth: 1, borderColor: 'rgba(237, 230, 211, 0.35)' },
+  soundCompact: { width: 40, height: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: FOREST_UI.glass },
+  blockedNoteWrap: { position: 'absolute', top: 104, right: 16, left: 16, alignItems: 'flex-end' },
+  blockedNote: { ...type.caption, fontSize: 13, color: FOREST_UI.inkSoft, ...FOREST_UI.textShadow },
   soundText: { ...type.small, fontSize: 14, color: FOREST_UI.ink },
   pressed: { opacity: 0.6 },
   hintWrap: { position: 'absolute', left: 0, right: 0, top: 120, alignItems: 'center', paddingHorizontal: 24 },
-  hintBtn: {
-    minHeight: HIT,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(10, 22, 24, 0.7)',
-  },
-  hintBtnText: { ...type.caption, fontSize: 14, color: FOREST_UI.ink },
   hint: {
     ...type.caption,
     color: FOREST_UI.ink,
