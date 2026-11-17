@@ -10,6 +10,7 @@ import { SoundPrompt } from '../../components/forest/SoundPrompt';
 import { FOREST_TEXT, ForestButton } from '../../components/forest/ui';
 import { ForestGate } from '../../components/forest/ForestGate';
 import { KEYS, isBoolean, usePersistentState } from '../../lib/storage';
+import { setCaveFireVolume } from '../../audio/caveSound';
 import { GATE_HINGE_SFX, GATE_HINGE_VOLUME } from '../../audio/sounds';
 import { playOnce } from '../../audio/sfx';
 import { BackIcon, RainIcon, SoundOffIcon, SoundOnIcon } from '../../components/icons';
@@ -52,6 +53,11 @@ function ForestShell() {
   }, [inCave]);
   const reduceMotion = useReduceMotion();
   const [settings, setSettings] = useForestSoundSettings();
+  // 동굴 환경음: 동굴 안에서 실제로 조절되는 소리는 장작불(숲소리는 동굴에서 아주 작게만 들림)
+  const [caveFire, setCaveFire] = usePersistentState<CaveFireSetting>(KEYS.caveFire, { volume: 1, muted: false }, isCaveFire);
+  useEffect(() => {
+    setCaveFireVolume(caveFire.muted ? 0 : caveFire.volume);
+  }, [caveFire]);
   // 비가 오면 귀뚜라미·풀벌레를 절반쯤 낮춤(바람은 그대로). 비가 그치면 원래대로
   const playSettings = useMemo(
     () => {
@@ -225,9 +231,23 @@ function ForestShell() {
             {/* 음량 세부 조절은 소리가 켜져 있을 때만, 다른 메뉴와 함께 숨음 */}
             {audible && (
               <Animated.View style={{ opacity: uiOpacity }} pointerEvents={uiHidden ? 'none' : 'box-none'}>
-                <ForestSoundButton value={settings} onChange={setSettings} masterOn={soundOn} onMasterChange={(on) => changeSound(on)} trigger="settings"
-                  note="숲에 머무는 동안 계속 들려요. 숲을 나가면 천천히 작아져요."
-                />
+                {inCave ? (
+                  <ForestSoundButton
+                    value={settings}
+                    onChange={setSettings}
+                    masterOn={soundOn}
+                    onMasterChange={(on) => changeSound(on)}
+                    trigger="settings"
+                    title="동굴 소리"
+                    tracks={[{ key: 'fire', label: '장작불', volume: caveFire.volume, muted: caveFire.muted }]}
+                    onTrack={(_k, patch) => setCaveFire({ volume: patch.volume ?? caveFire.volume, muted: patch.muted ?? caveFire.muted })}
+                    note="장작불 소리는 조약돌·종이·장작 넣기 소리와 함께 커지고 작아져요. 숲소리는 동굴 밖에서 조절해요. 위쪽 스피커를 끄면 모든 소리가 꺼져요."
+                  />
+                ) : (
+                  <ForestSoundButton value={settings} onChange={setSettings} masterOn={soundOn} onMasterChange={(on) => changeSound(on)} trigger="settings"
+                    note="숲에 머무는 동안 계속 들려요. 위쪽 스피커를 끄면 숲소리·빗소리·걷는 소리·풍경·동굴 소리가 모두 꺼져요."
+                  />
+                )}
               </Animated.View>
             )}
           </View>
@@ -277,6 +297,10 @@ function ForestShell() {
 const RAIN_BUGS_DUCK = 0.5;
 /** 동굴 안에서 숲소리 음량 비율 (멀리서 아주 작게) */
 const CAVE_DUCK = 0.12;
+
+type CaveFireSetting = { volume: number; muted: boolean };
+const isCaveFire = (v: unknown): v is CaveFireSetting =>
+  typeof v === 'object' && v != null && typeof (v as CaveFireSetting).volume === 'number' && typeof (v as CaveFireSetting).muted === 'boolean';
 
 const FOREST_NAV_THEME = {
   ...DefaultTheme,

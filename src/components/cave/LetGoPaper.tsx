@@ -5,7 +5,7 @@ import { fireFlare, paperTear } from '../../audio/caveSound';
 import { pretendard, radius } from '../../theme';
 
 /**
- * 내 마음 버리기
+ * 마음에 걸린 것 내려놓기 (예전 「내 마음 버리기」)
  * 메모하듯 적은 글을 종이로 보여 주고, 직접 불에 태우거나 찢어서 버립니다.
  *
  * 개인정보: 적은 글은 이 화면의 메모리에만 있고 서버·기기 저장소·외부 어디에도 보내거나 남기지 않습니다.
@@ -19,11 +19,13 @@ type Props = {
   onBurn: () => void;
   /** 끝나거나 그만둠 */
   onClose: () => void;
+  /** 글 없이 쉬고 싶을 때: 조약돌 던지기로 */
+  onPebble?: () => void;
 };
 
 type Phase = 'write' | 'burn' | 'tear';
 
-export function LetGoPaper({ fire, soundOn, onBurn, onClose }: Props) {
+export function LetGoPaper({ fire, soundOn, onBurn, onClose, onPebble }: Props) {
   const [text, setText] = useState('');
   const [phase, setPhase] = useState<Phase>('write');
   const [paper, setPaper] = useState({ x: 0, y: 0, w: 0, h: 0 });
@@ -107,7 +109,7 @@ export function LetGoPaper({ fire, soundOn, onBurn, onClose }: Props) {
             autoComplete="off"
             spellCheck={false}
             textAlignVertical="top"
-            accessibilityLabel="내 마음 적기. 적은 글은 저장되지 않아요."
+            accessibilityLabel="마음에 걸린 것 적기. 적은 글은 저장되지 않아요."
           />
         </View>
         <Text style={FOREST_TEXT.caption}>적은 글은 어디에도 저장되지 않아요.</Text>
@@ -116,6 +118,19 @@ export function LetGoPaper({ fire, soundOn, onBurn, onClose }: Props) {
           <ForestButton label="찢어서 버리기" size="sm" disabled={!text.trim()} onPress={tear} />
           <ForestButton label="그만두기" variant="quiet" size="sm" onPress={cancel} />
         </View>
+        {onPebble && (
+          <ForestButton
+            label="글 없이 조약돌 던지기"
+            variant="quiet"
+            size="sm"
+            onPress={() => {
+              setText('');
+              Keyboard.dismiss();
+              onPebble();
+            }}
+            accessibilityHint="적지 않고 조약돌을 던지며 쉬어요"
+          />
+        )}
       </View>
     );
   }

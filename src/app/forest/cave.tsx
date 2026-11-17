@@ -18,7 +18,7 @@ import { FOREST_UI } from '../../components/forest/forestUi';
 /**
  * 동굴 — 마음이 복잡할 때 들어와 내려놓는 곳 (쉼표 2.0 핵심 공간)
  *
- * - 아무것도 하지 않고 장작불 곁에 머물러도 되고(기본), 「내 마음 버리기」 「조약돌 던지기」를 고를 수 있음
+ * - 아무것도 하지 않고 장작불 곁에 머물러도 되고(기본), 「마음에 걸린 것 내려놓기」(글 없이 쉬려면 조약돌로) 「조약돌 던지기」를 고를 수 있음
  * - 들어오면 숲소리는 천천히 작아지고 장작불 소리가 커짐(숲 공간 레이아웃이 맞춤). 나가면 반대로
  * - 들어온 지 약 15분 뒤 한 번만 「나가기 / 더 머물기」. 카운트다운·반복 알림·성취 문구 없음
  * - 버튼과 문구는 최소, 4초 뒤 숨고 화면을 누르면 다시 보임
@@ -164,6 +164,10 @@ export default function Cave() {
                 setActivity('stay');
                 wakeUi();
               }}
+              onPebble={() => {
+                setActivity('pebble');
+                wakeUi();
+              }}
             />
           </KeyboardAvoidingView>
         ) : (
@@ -180,7 +184,7 @@ export default function Cave() {
             ) : activity === 'stay' ? (
               <View style={styles.row}>
                 <ForestButton label="불 가까이 보기" size="sm" variant="solid" onPress={openClose} />
-                <ForestButton label="내 마음 버리기" size="sm" variant="solid" onPress={() => setActivity('letgo')} />
+                <ForestButton label="마음에 걸린 것 내려놓기" size="sm" variant="solid" onPress={() => setActivity('letgo')} />
                 <ForestButton label="조약돌 던지기" size="sm" variant="solid" onPress={() => setActivity('pebble')} />
                 <ForestButton label="나가기" size="sm" variant="quiet" onPress={() => setExitOpen(true)} />
               </View>
