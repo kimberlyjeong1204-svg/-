@@ -65,7 +65,7 @@ export default function Home() {
               ·
             </Text>
             <Pressable onPress={() => router.push('/forest/stay')} accessibilityRole="link" style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
-              <Text style={styles.linkLabel}>숲에 머물기</Text>
+              <Text style={styles.linkLabel}>숲 거닐기</Text>
             </Pressable>
           </View>
           {/* 만든 사람 */}

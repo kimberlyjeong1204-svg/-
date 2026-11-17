@@ -2,10 +2,12 @@ import { useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
 import { pebbleHit } from '../../audio/caveSound';
+import { fireOnScreen } from './caveConfig';
 
 /**
  * 조약돌 던지기
- * 바닥의 작은 조약돌을 골라 동굴 벽으로 던집니다. 끌어서 튕기거나, 눌러서 던질 수 있습니다.
+ * 바닥의 작은 조약돌을 골라, 손가락으로 끈 방향의 동굴 안쪽 암벽으로 던집니다(누르기만 하면 바로 위 암벽).
+ * 돌은 안쪽으로 날아가며 작아지고, 화면에서 맞는 자리 = 실제 충돌 위치. 장작불·사람 쪽과 화면 밖으로는 날아가지 않음.
  * 벽에 닿으면 딱 소리와 동굴 울림, 옅은 돌가루. 돌은 바닥으로 떨어져 사라지고 같은 자리에 새 돌이 놓입니다.
  * 점수·성공/실패 없음, 몇 번이든 던질 수 있음.
  */
@@ -14,8 +16,8 @@ type Props = { soundOn: boolean; reduceMotion: boolean };
 const SLOTS = [0.2, 0.36, 0.52, 0.68, 0.82];
 const SIZES = [1.05, 0.85, 1.2, 0.95, 0.8];
 
-type Flight = { id: number; from: { x: number; y: number }; to: { x: number; y: number }; size: number; t: Animated.Value };
-type Puff = { id: number; x: number; y: number; t: Animated.Value };
+type Flight = { id: number; from: { x: number; y: number }; to: { x: number; y: number }; size: number; endScale: number; t: Animated.Value };
+type Puff = { id: number; x: number; y: number; s: number; t: Animated.Value };
 
 export function PebbleThrow({ soundOn, reduceMotion }: Props) {
   const { width: W, height: H } = useWindowDimensions();
@@ -26,29 +28,55 @@ export function PebbleThrow({ soundOn, reduceMotion }: Props) {
   const nextId = useRef(1);
   const groundY = H * 0.86;
 
-  const throwFrom = (slot: number, from: { x: number; y: number }, vx: number, vy: number) => {
+  // 던질 수 있는 곳: 동굴 안쪽 암벽(화면 위쪽~가운데). 장작불·사람(아이) 쪽과 화면 밖은 제외
+  const fire = fireOnScreen(W, H);
+  const keepOut = (x: number, y: number) =>
+    (Math.abs(x - fire.x) < W * 0.14 && y > fire.y - H * 0.3) || // 장작불과 그 위 연기
+    (x > W * 0.74 && y > H * 0.5); // 앉아 있는 사람 쪽
+  const toWall = (x: number, y: number) => {
+    let tx = Math.max(W * 0.08, Math.min(W * 0.92, x));
+    let ty = Math.max(H * 0.14, Math.min(H * 0.56, y));
+    if (keepOut(tx, ty)) {
+      // 금지 영역이면 가장 가까운 위쪽 암벽으로
+      ty = Math.min(ty, fire.y - H * 0.32);
+      if (tx > W * 0.74) ty = Math.min(ty, H * 0.48);
+    }
+    return { x: tx, y: ty };
+  };
+
+  /** from: 돌을 집은 곳, release: 손가락을 뗀 곳. 끈 방향의 연장선 위 암벽에 맞음 */
+  const throwFrom = (slot: number, from: { x: number; y: number }, release: { x: number; y: number }) => {
     const size = SIZES[slot];
-    // 위로 세게 튕길수록 벽 높은 곳에, 옆으로 튕긴 만큼 옆으로
-    const speed = Math.min(2.5, Math.max(0.6, -vy));
-    const to = {
-      x: Math.max(W * 0.12, Math.min(W * 0.88, from.x + vx * 160 + (Math.random() - 0.5) * 30)),
-      y: Math.max(H * 0.16, Math.min(H * 0.5, H * 0.56 - speed * H * 0.12 + (Math.random() - 0.5) * 20)),
-    };
+    let dx = release.x - from.x, dy = release.y - from.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 12 || dy > -6) {
+      // 그냥 누르거나 아래로 끌면: 바로 위 암벽으로
+      dx = (Math.random() - 0.5) * W * 0.25;
+      dy = -H * 0.45;
+    } else {
+      // 끈 방향 그대로, 길게 끌수록 더 멀리(높이) — 암벽까지 연장
+      const k = Math.max(1.8, (H * 0.5) / Math.max(1, -dy));
+      dx *= k;
+      dy *= k;
+    }
+    const to = toWall(from.x + dx, from.y + dy);
+    // 멀리(위쪽) 맞을수록 작게 보임
+    const far = 1 - (to.y - H * 0.14) / (H * 0.42);
+    const endScale = size * (0.42 - 0.2 * far);
     const id = nextId.current++;
     const t = new Animated.Value(0);
     setHidden((h) => h.map((v, i) => (i === slot ? true : v)));
-    setFlights((f) => [...f, { id, from, to, size, t }]);
-    Animated.timing(t, { toValue: 1, duration: reduceMotion ? 350 : 620, easing: Easing.out(Easing.quad), useNativeDriver: native }).start(() => {
+    setFlights((f) => [...f, { id, from, to, size, endScale, t }]);
+    Animated.timing(t, { toValue: 1, duration: reduceMotion ? 350 : 640, easing: Easing.out(Easing.quad), useNativeDriver: native }).start(() => {
       if (soundOn) pebbleHit((to.x / W) * 2 - 1, size);
       const pt = new Animated.Value(0);
       const pid = nextId.current++;
-      setPuffs((p) => [...p, { id: pid, x: to.x, y: to.y, t: pt }]);
+      setPuffs((p) => [...p, { id: pid, x: to.x, y: to.y, s: endScale, t: pt }]);
       Animated.timing(pt, { toValue: 1, duration: 900, useNativeDriver: native }).start(() => setPuffs((p) => p.filter((q) => q.id !== pid)));
-      // 벽에 맞은 돌은 아래로 떨어지며 사라짐
-      Animated.timing(t, { toValue: 2, duration: 700, easing: Easing.in(Easing.quad), useNativeDriver: native }).start(() => {
+      // 벽에 맞은 자리에서 아래로 떨어지며 사라짐
+      Animated.timing(t, { toValue: 2, duration: 650, easing: Easing.in(Easing.quad), useNativeDriver: native }).start(() => {
         setFlights((f) => f.filter((q) => q.id !== id));
       });
-      // 같은 자리에 새 돌
       setTimeout(() => setHidden((h) => h.map((v, i) => (i === slot ? false : v))), 900);
     });
   };
@@ -56,7 +84,8 @@ export function PebbleThrow({ soundOn, reduceMotion }: Props) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       {flights.map((f) => {
-        const mid = { x: (f.from.x + f.to.x) / 2, y: Math.min(f.from.y, f.to.y) - H * 0.08 };
+        // 살짝 위로 휘며 안쪽으로 날아감
+        const mid = { x: (f.from.x + f.to.x) / 2, y: (f.from.y + f.to.y) / 2 - H * 0.05 };
         return (
           <Animated.View
             key={f.id}
@@ -67,8 +96,8 @@ export function PebbleThrow({ soundOn, reduceMotion }: Props) {
                 opacity: f.t.interpolate({ inputRange: [0, 1, 1.6, 2], outputRange: [1, 1, 0.7, 0] }),
                 transform: [
                   { translateX: f.t.interpolate({ inputRange: [0, 0.5, 1, 2], outputRange: [f.from.x, mid.x, f.to.x, f.to.x] }) },
-                  { translateY: f.t.interpolate({ inputRange: [0, 0.5, 1, 2], outputRange: [f.from.y, mid.y, f.to.y, f.to.y + H * 0.12] }) },
-                  { scale: f.t.interpolate({ inputRange: [0, 1, 2], outputRange: [f.size, f.size * 0.38, f.size * 0.34] }) },
+                  { translateY: f.t.interpolate({ inputRange: [0, 0.5, 1, 2], outputRange: [f.from.y, mid.y, f.to.y, f.to.y + H * 0.06] }) },
+                  { scale: f.t.interpolate({ inputRange: [0, 1, 2], outputRange: [f.size, f.endScale, f.endScale * 0.9] }) },
                 ],
               },
             ]}
@@ -87,7 +116,7 @@ export function PebbleThrow({ soundOn, reduceMotion }: Props) {
               left: p.x - 30,
               top: p.y - 30,
               opacity: p.t.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.5, 0] }),
-              transform: [{ scale: p.t.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1.4] }) }],
+              transform: [{ scale: p.t.interpolate({ inputRange: [0, 1], outputRange: [0.3 * p.s * 2, 1.4 * p.s * 2] }) }],
             },
           ]}
         />
@@ -99,7 +128,7 @@ export function PebbleThrow({ soundOn, reduceMotion }: Props) {
   );
 }
 
-function Pebble({ slot, x, y, size, onThrow }: { slot: number; x: number; y: number; size: number; onThrow: (slot: number, from: { x: number; y: number }, vx: number, vy: number) => void }) {
+function Pebble({ slot, x, y, size, onThrow }: { slot: number; x: number; y: number; size: number; onThrow: (slot: number, from: { x: number; y: number }, release: { x: number; y: number }) => void }) {
   const drag = useRef(new Animated.ValueXY()).current;
   const lift = useRef(new Animated.Value(1)).current;
   const responder = useMemo(
@@ -111,11 +140,9 @@ function Pebble({ slot, x, y, size, onThrow }: { slot: number; x: number; y: num
         onPanResponderMove: Animated.event([null, { dx: drag.x, dy: drag.y }], { useNativeDriver: false }),
         onPanResponderRelease: (_e, g) => {
           lift.setValue(1);
-          const from = { x: x + g.dx, y: y + g.dy };
           drag.setValue({ x: 0, y: 0 });
-          // 그냥 눌렀다 떼면 위로 던짐
-          const tap = Math.abs(g.dx) < 6 && Math.abs(g.dy) < 6;
-          onThrow(slot, from, tap ? (Math.random() - 0.5) * 0.6 : g.vx, tap ? -1.2 : Math.min(-0.4, g.vy));
+          // 집은 곳에서 손가락을 뗀 곳 방향으로 (조금 튕긴 속도도 반영)
+          onThrow(slot, { x, y }, { x: x + g.dx + g.vx * 60, y: y + g.dy + g.vy * 60 });
         },
         onPanResponderTerminate: () => {
           lift.setValue(1);

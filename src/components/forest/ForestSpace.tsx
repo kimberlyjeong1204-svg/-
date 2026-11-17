@@ -89,7 +89,12 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
   const uiOpacity = useRef(new Animated.Value(1)).current;
   const [autoHide, setAutoHide] = useState(true);
   const [hideDelay, setHideDelayState] = useState<number>(HIDE_AFTER_MS);
-  const setHideDelay = useCallback((ms: number) => setHideDelayState(ms), []);
+  // 바뀐 시간이 바로 다음 숨김 타이머에 적용되도록 ref로도 들고 있음
+  const hideDelayRef = useRef<number>(HIDE_AFTER_MS);
+  const setHideDelay = useCallback((ms: number) => {
+    hideDelayRef.current = ms;
+    setHideDelayState(ms);
+  }, []);
   const [soundStatus, setSoundStatus] = useState<ForestSoundStatus>('off');
   const retryRef = useRef<() => void>(() => {});
   const reportSound = useCallback((status: ForestSoundStatus, retry: () => void) => {
@@ -119,7 +124,7 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
     timer.current = setTimeout(() => {
       setUiHidden(true);
       Animated.timing(uiOpacity, { toValue: DIM_OPACITY, duration: FOREST_MOTION.uiOut, useNativeDriver: true }).start();
-    }, hideDelay);
+    }, hideDelayRef.current);
   }, [autoHide, uiOpacity, hideDelay]);
 
   const hideUi = useCallback(() => {

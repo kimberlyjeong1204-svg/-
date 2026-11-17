@@ -1,39 +1,45 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, Image, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForestSpace } from '../../components/forest/ForestSpace';
-import { FOREST_TEXT, ForestButton, ForestChoiceGroup } from '../../components/forest/ui';
+import { FOREST_TEXT, ForestButton } from '../../components/forest/ui';
 import { WindChime } from '../../components/forest/WindChime';
+import { PLACES, WALK_MS, type Place } from '../../components/forest/walkConfig';
+import { FOREST_IMAGE, coverView, forestImages } from '../../components/forest/forestConfig';
 import { useReduceMotion } from '../../components/BreathCircle';
 import { leafRustle } from '../../audio/forestTouchSound';
+import { setWalkMix, startSteps, stopSteps, stopWalk } from '../../audio/walkSound';
 
 /**
- * 숲에 머물기 — 세 가지 체험
+ * 숲 거닐기 (예전 「숲에 머물기」 주소 /forest/stay를 그대로 씀)
  *
- * 아래의 작은 선택지에서 고르거나, 고르지 않고 그냥 머물러도 됩니다. 언제든 다른 체험으로 바꿀 수 있고
- * 숲소리는 숲 공간이 맡고 있어 바꿔도 끊기지 않습니다(새로 재생하지 않음).
- * - 가만히 있기: 숲의 움직임과 자연음 그대로. 타이머·점수·완료 문구 없음
- * - 숲소리 듣기: 화면을 은은하게 어둡게. 소리가 꺼져 있거나 막혀 있으면 눌러서 켜도록 안내(자동 재생 우회 없음)
- * - 풍경 흔들기: 나뭇가지에 매달린 나무 풍경을 건드리거나 끌어 흔듦
- * 버튼과 안내는 약 5초 뒤 숨고, 화면을 누르면 다시 보입니다.
- * (예전의 선택 타이머는 화면에서 뺐습니다. 코드는 src/lib/useStayTimer.ts에 남아 있습니다.)
+ * 숲길 → 폭포 → 큰 나무 아래를 장면으로 잇습니다(3D 자유 이동 아님).
+ * - 「계속 걷기」: 지금 장면이 천천히 다가오며(걷는 듯 살짝 흔들림) 흐려지고 다음 장소가 드러남. 걷는 동안만 발소리
+ * - 소리: 숲 기본 자연음은 숲 공간이 그대로 맡고, 장소 소리(물·잎·새)만 이동하는 동안 천천히 바뀜.
+ *   폭포는 숲길에서부터 멀리 작게 들리다 가까워질수록 커짐
+ * - 장소에 도착하면 필요한 선택만 작게(잠시 앉기 · 계속 걷기 · 돌아가기). 앉으면 버튼은 금방 숨고, 화면을 누르면 다시
+ * - 큰 나무 아래: 나뭇가지에 매달린 나무 풍경(건드리거나 끌어 흔들기)
+ * - 걸음 수·거리·타이머·미션 없음. 아무것도 하지 않고 머물러도 됨
+ * 폭포·큰 나무 그림은 지금 숲 그림에서 잘라 만든 임시 장면입니다(walkConfig.ts의 temporary).
  */
-type Mode = 'still' | 'listen' | 'chime';
-const MODES: { value: Mode; label: string }[] = [
-  { value: 'still', label: '가만히 있기' },
-  { value: 'listen', label: '숲소리 듣기' },
-  { value: 'chime', label: '풍경 흔들기' },
-];
 const HIDE_DELAY = 5000;
+const SIT_HIDE_DELAY = 3200;
 
-export default function ForestStay() {
-  const { uiOpacity, uiHidden, wakeUi, setHideDelay, touchForest, soundOn, setSoundOn, soundStatus, retrySound } = useForestSpace();
-  const { width } = useWindowDimensions();
+export default function ForestWalk() {
+  const { uiOpacity, uiHidden, wakeUi, setHideDelay, touchForest, soundOn, soundStatus } = useForestSpace();
+  const { width, height } = useWindowDimensions();
   const reduceMotion = useReduceMotion();
-  const [mode, setMode] = useState<Mode | null>(null);
-  // 체험을 고르면 선택지는 접고 작은 「체험 바꾸기」만 남김
-  const [menuOpen, setMenuOpen] = useState(true);
+  const native = Platform.OS !== 'web';
+  const audible = soundOn && soundStatus === 'on';
+
+  const [at, setAt] = useState(0);
+  const [walk, setWalk] = useState<{ from: number; to: number } | null>(null);
+  const [sitting, setSitting] = useState(false);
+  const progress = useRef(new Animated.Value(0)).current;
+  const sit = useRef(new Animated.Value(0)).current;
+  const nameFade = useRef(new Animated.Value(0)).current;
+  const place = PLACES[at];
 
   useFocusEffect(
     useCallback(() => {
@@ -42,80 +48,160 @@ export default function ForestStay() {
       return () => setHideDelay(4000);
     }, [setHideDelay, wakeUi]),
   );
-
-  // 숲소리 듣기: 화면을 천천히 어둡게
-  const dim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(dim, { toValue: mode === 'listen' ? 1 : 0, duration: 1800, useNativeDriver: true }).start();
-  }, [mode, dim]);
-
-  const choose = (m: Mode) => {
-    setMode(m);
-    setMenuOpen(false);
+    setHideDelay(sitting ? SIT_HIDE_DELAY : HIDE_DELAY);
     wakeUi();
+  }, [sitting, setHideDelay, wakeUi]);
+
+  // 장소 소리: 소리가 실제로 날 때만. 떠나면 천천히 줄임
+  useEffect(() => {
+    if (!audible) {
+      stopWalk(800);
+      return;
+    }
+    if (!walk) setWalkMix(PLACES[at].mix, 2500);
+  }, [audible, at, walk]);
+  useEffect(() => () => stopWalk(1500), []);
+
+  const showName = () => {
+    nameFade.setValue(0);
+    Animated.sequence([
+      Animated.timing(nameFade, { toValue: 1, duration: 700, useNativeDriver: native }),
+      Animated.delay(1600),
+      Animated.timing(nameFade, { toValue: 0, duration: 900, useNativeDriver: native }),
+    ]).start();
   };
 
-  const audible = soundStatus === 'on';
-  const blocked = soundStatus === 'blocked';
-  const starting = soundStatus === 'starting';
-  const turnOn = () => (blocked ? retrySound() : setSoundOn(true));
+  const go = (to: number) => {
+    if (walk || to < 0 || to >= PLACES.length) return;
+    setSitting(false);
+    sit.setValue(0);
+    setWalk({ from: at, to });
+    progress.setValue(0);
+    if (audible) {
+      setWalkMix(PLACES[to].mix, WALK_MS);
+      startSteps(PLACES[at].ground);
+    }
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: reduceMotion ? 900 : WALK_MS,
+      easing: Easing.inOut(Easing.quad),
+      useNativeDriver: native,
+    }).start(() => {
+      stopSteps(); // 멈추면 발소리도 바로 그침
+      setAt(to);
+      setWalk(null);
+      showName();
+      wakeUi();
+    });
+  };
+
+  const toggleSit = (on: boolean) => {
+    setSitting(on);
+    Animated.timing(sit, { toValue: on ? 1 : 0, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: native }).start();
+  };
+
+  // 걷는 느낌: 앞으로 다가가며 아주 살짝 위아래로
+  const steps = useMemo(() => Array.from({ length: 41 }, (_, i) => i / 40), []);
+  const bob = progress.interpolate({ inputRange: steps, outputRange: steps.map((p) => (reduceMotion ? 0 : Math.sin(p * Math.PI * 7) * 3 * Math.sin(p * Math.PI))) });
+  const fromStyle = {
+    opacity: progress.interpolate({ inputRange: [0, 0.5, 0.88], outputRange: [1, 1, 0], extrapolate: 'clamp' as const }),
+    transform: [{ translateY: bob }, { scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, reduceMotion ? 1 : 1.22] }) }],
+  };
+  const toStyle = {
+    opacity: progress.interpolate({ inputRange: [0, 0.45, 0.92], outputRange: [0, 0, 1], extrapolate: 'clamp' as const }),
+    transform: [{ translateY: bob }, { scale: progress.interpolate({ inputRange: [0.45, 1], outputRange: [reduceMotion ? 1 : 1.12, 1], extrapolate: 'clamp' as const }) }],
+  };
+  const sitStyle = {
+    transform: [{ translateY: sit.interpolate({ inputRange: [0, 1], outputRange: [0, 14] }) }, { scale: sit.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) }],
+  };
+
+  const next = at + 1 < PLACES.length ? at + 1 : -1;
+  const prev = at - 1;
 
   return (
     <View style={styles.root}>
-      {/* 숲 만지기는 여기서도 그대로 (풍경 흔들기 중에는 풍경 아래쪽만) */}
+      {/* 숲길에서는 움직이는 숲을 그대로 만질 수 있음 */}
       <Pressable
         style={StyleSheet.absoluteFill}
         onPress={(e) => {
-          if (mode === 'listen') return;
+          if (walk || place.image) return;
           touchForest(e.nativeEvent.pageX, e.nativeEvent.pageY);
           if (soundOn) leafRustle((e.nativeEvent.pageX / width) * 2 - 1);
         }}
         accessible={false}
       />
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.dim, { opacity: Animated.multiply(dim, 0.62) }]} />
 
-      {mode === 'chime' && (
+      {/* 장소 장면 */}
+      {walk ? (
+        <>
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, fromStyle]}>
+            <PlaceImage place={PLACES[walk.from]} w={width} h={height} />
+          </Animated.View>
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, toStyle]}>
+            <PlaceImage place={PLACES[walk.to]} w={width} h={height} />
+          </Animated.View>
+        </>
+      ) : (
+        place.image && (
+          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, sitStyle]}>
+            <PlaceImage place={place} w={width} h={height} />
+          </Animated.View>
+        )
+      )}
+      {/* 앉으면 가장자리를 조금 어둡게(풍경과 소리에 집중) */}
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.sitDim, { opacity: Animated.multiply(sit, 0.35) }]} />
+
+      {/* 큰 나무 아래: 나뭇가지에 매달린 나무 풍경 */}
+      {!walk && place.chimeX != null && (
         <View style={styles.chimeWrap} pointerEvents="box-none">
-          <WindChime width={Math.min(width, 520)} soundOn={soundOn && audible} reduceMotion={reduceMotion} />
-          {/* 소리 상태를 정직하게: 꺼짐·재생 차단이면 소리가 나지 않는다고 알림 */}
-          {(!soundOn || blocked) && (
-            <Animated.Text style={[FOREST_TEXT.caption, { opacity: uiOpacity }]}>
-              {blocked ? 'Safari가 소리를 멈췄어요. 위쪽 버튼을 누르면 풍경 소리도 들려요.' : '숲소리를 켜면 풍경 소리도 들려요.'}
-            </Animated.Text>
-          )}
+          <WindChime width={Math.min(width, 520)} soundOn={audible} reduceMotion={reduceMotion} anchorX={place.chimeX} />
         </View>
       )}
 
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']} pointerEvents="box-none">
-        <View style={styles.center} pointerEvents="box-none">
-          {/* 숲소리 듣기: 소리가 꺼져 있거나 막혀 있으면 눌러서 켜기 (숨지 않음) */}
-          {mode === 'listen' && !audible && (
-            <View style={styles.listenCard}>
-              <Text style={FOREST_TEXT.cue}>{starting ? '숲소리를 켜고 있어요.' : blocked ? 'Safari가 숲소리를 잠시 멈췄어요.' : '숲소리가 꺼져 있어요.'}</Text>
-              {!starting && soundStatus !== 'held' && <ForestButton label={blocked ? '눌러서 숲소리 켜기' : '숲소리 켜기'} variant="primary" size="md" onPress={turnOn} />}
-            </View>
-          )}
+        <View style={styles.center} pointerEvents="none">
+          <Animated.Text style={[FOREST_TEXT.cue, { opacity: nameFade }]}>{place.name}</Animated.Text>
         </View>
-
-        <Animated.View style={[styles.bottom, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
-          {mode === 'listen' && audible && (
+        {!walk && (
+          <Animated.View style={[styles.bottom, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
             <View style={styles.row}>
-              <ForestButton label="숲소리 끄기" size="sm" onPress={() => setSoundOn(false)} />
-              <ForestButton label="돌아가기" size="sm" variant="quiet" onPress={() => { setMode(null); setMenuOpen(true); }} accessibilityLabel="숲소리 듣기 그만하기" />
+              {sitting ? (
+                <>
+                  <ForestButton label="일어나기" variant="solid" onPress={() => toggleSit(false)} />
+                  {next >= 0 && <ForestButton label="계속 걷기" variant="solid" onPress={() => go(next)} />}
+                </>
+              ) : (
+                <>
+                  {prev >= 0 && <ForestButton label="돌아가기" variant="solid" onPress={() => go(prev)} accessibilityLabel={`${PLACES[prev].name}(으)로 돌아가기`} />}
+                  {place.canSit && <ForestButton label="잠시 앉기" variant="solid" onPress={() => toggleSit(true)} />}
+                  {next >= 0 && <ForestButton label="계속 걷기" variant="solid" onPress={() => go(next)} accessibilityLabel={`계속 걷기: ${PLACES[next].name}(으)로`} />}
+                </>
+              )}
             </View>
-          )}
-          {menuOpen || mode == null ? (
-            <ForestChoiceGroup label="숲에 머물기" showLabel={false} align="center" options={MODES} value={mode} onChange={choose} />
-          ) : (
-            <ForestButton
-              label={`${MODES.find((m) => m.value === mode)?.label} · 바꾸기`}
-              size="sm"
-              onPress={() => setMenuOpen(true)}
-              accessibilityLabel="체험 바꾸기"
-            />
-          )}
-        </Animated.View>
+            {!audible && <Animated.Text style={FOREST_TEXT.caption}>숲소리를 켜면 장소마다 다른 소리가 들려요.</Animated.Text>}
+          </Animated.View>
+        )}
       </SafeAreaView>
+    </View>
+  );
+}
+
+/** 장소 그림: 숲길은 숲 장면과 같은 구도의 숲 그림, 나머지는 장소 그림을 화면에 꽉 차게 */
+function PlaceImage({ place, w, h }: { place: Place; w: number; h: number }) {
+  if (!place.image) {
+    const v = coverView(w, h);
+    const imgW = w / v.sx;
+    const imgH = imgW * (FOREST_IMAGE.height / FOREST_IMAGE.width);
+    return (
+      <View style={[StyleSheet.absoluteFill, styles.ground]}>
+        <Image source={forestImages.background} style={{ position: 'absolute', width: imgW, height: imgH, left: -v.ox * imgW, top: -v.oy * imgH }} />
+      </View>
+    );
+  }
+  return (
+    <View style={[StyleSheet.absoluteFill, styles.ground]}>
+      <Image source={place.image} style={{ width: w, height: h }} resizeMode="cover" />
     </View>
   );
 }
@@ -123,10 +209,10 @@ export default function ForestStay() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
   safe: { flex: 1 },
-  dim: { backgroundColor: '#03080A' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  listenCard: { alignItems: 'center', gap: 14 },
-  chimeWrap: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', gap: 6 },
-  bottom: { alignItems: 'center', gap: 12, paddingBottom: 28, paddingHorizontal: 12 },
-  row: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  ground: { backgroundColor: '#0B1A1E', overflow: 'hidden' },
+  sitDim: { backgroundColor: '#03080A' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  chimeWrap: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' },
+  bottom: { alignItems: 'center', gap: 10, paddingBottom: 28, paddingHorizontal: 12 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
 });
