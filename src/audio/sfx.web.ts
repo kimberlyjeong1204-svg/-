@@ -27,6 +27,9 @@ export function playOnce(source: number, volume = 1) {
         g.disconnect();
       };
       src.start(c.currentTime + 0.02);
+      // 자동 점검용: 어떤 효과음이 났는지(화면·기능에는 영향 없음)
+      const w = window as unknown as { __shimpyoSfx?: string[] };
+      (w.__shimpyoSfx ??= []).push(uri);
     })
     .catch(() => {
       // 효과음이 없어도 앱은 그대로 동작

@@ -20,16 +20,25 @@ type Props = {
   trigger?: 'sound' | 'settings';
   /** 창 아래 안내 문구 (없으면 기본 문구) */
   note?: string;
+  /** 숲 소리 대신 보여 줄 소리(동굴의 장작불처럼 그 화면에서 실제로 조절되는 소리) */
+  tracks?: Track[];
+  onTrack?: (key: string, patch: { volume?: number; muted?: boolean }) => void;
+  title?: string;
 };
 
+export type Track = { key: string; label: string; volume: number; muted: boolean };
+
 /** 숲 화면 제목줄의 소리 아이콘과, 아래에서 올라오는 「숲 소리」 조절 창 */
-export function ForestSoundButton({ value, onChange, masterOn, onMasterChange, trigger = 'sound', note }: Props) {
+export function ForestSoundButton({ value, onChange, masterOn, onMasterChange, trigger = 'sound', note, tracks, onTrack, title = '숲 소리' }: Props) {
   const [open, setOpen] = useState(false);
   const on = masterOn ?? value.on;
   const setOn = (next: boolean) => (onMasterChange ? onMasterChange(next) : onChange({ ...value, on: next }));
   const audible = on && FOREST_TRACK_ORDER.some((k) => !value.muted[k] && value.volume[k] > 0);
 
-  const setTrack = (key: ForestTrackKey, patch: { volume?: number; muted?: boolean }) =>
+  const list: Track[] = tracks ?? FOREST_TRACK_ORDER.map((k) => ({ key: k, label: FOREST_TRACKS[k].label, volume: value.volume[k], muted: value.muted[k] }));
+  const setTrack = (key: string, patch: { volume?: number; muted?: boolean }) =>
+    onTrack ? onTrack(key, patch) : setForestTrack(key as ForestTrackKey, patch);
+  const setForestTrack = (key: ForestTrackKey, patch: { volume?: number; muted?: boolean }) =>
     onChange({
       ...value,
       volume: patch.volume == null ? value.volume : { ...value.volume, [key]: patch.volume },
@@ -47,17 +56,15 @@ export function ForestSoundButton({ value, onChange, masterOn, onMasterChange, t
         {trigger === 'settings' ? <SlidersIcon color={INK} /> : audible ? <SoundOnIcon color={INK} /> : <SoundOffIcon color={INK} />}
       </Pressable>
 
-      <ForestSheet open={open} onClose={() => setOpen(false)} title="숲 소리" closeLabel="숲 소리 닫기">
+      <ForestSheet open={open} onClose={() => setOpen(false)} title={title} closeLabel={`${title} 닫기`}>
         <View style={styles.row}>
           <Text style={styles.label}>소리 켜기</Text>
           <Toggle value={on} onChange={setOn} label="숲 소리 켜기" />
         </View>
 
         <View style={[styles.tracks, !on && styles.off]} pointerEvents={on ? 'auto' : 'none'}>
-          {FOREST_TRACK_ORDER.map((key) => {
-            const muted = value.muted[key];
-            const pct = Math.round(value.volume[key] * 100);
-            const name = FOREST_TRACKS[key].label;
+          {list.map(({ key, label: name, volume, muted }) => {
+            const pct = Math.round(volume * 100);
             return (
               <View key={key} style={styles.track}>
                 <View style={styles.trackHead}>
@@ -79,7 +86,7 @@ export function ForestSoundButton({ value, onChange, masterOn, onMasterChange, t
                     minimumValue={0}
                     maximumValue={1}
                     step={0.05}
-                    value={value.volume[key]}
+                    value={volume}
                     disabled={muted}
                     onValueChange={(v: number) => setTrack(key, { volume: Math.round(v * 100) / 100 })}
                     minimumTrackTintColor={colors.sage}

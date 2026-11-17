@@ -8,6 +8,7 @@ import type { ForestWeather } from '../components/forest/forestScenes';
 /**
  * 숲의 비 소리 (Rain Mode + 숲 숨 고르기 빗소리를 한 채널에서)
  *
+ * - 위쪽 스피커(숲소리)를 끄면 숨 고르기 빗소리까지 모두 멈춤 (숲 공간의 모든 소리가 같은 스피커를 따름)
  * - 숨 고르기 중 빗소리를 골랐으면 그 비 (일시정지면 잠시 멈춤)
  * - 숨 고르기 중 「내 음악과 함께」면 비 없음
  * - 그 밖에는 Rain Mode가 켜져 있고 숲소리가 켜져 있으면 「가벼운 비」 (4~6초 페이드)
@@ -27,6 +28,10 @@ export function useForestRain(weather: ForestWeather, soundOn: boolean, breathe:
   const breatheActive = breathe.phase === 'running' || breathe.phase === 'paused';
   useEffect(() => {
     const away = !appActive || yielded;
+    if (!soundOn) {
+      driveRain({ key: null, playing: false, fadeOutMs: 1500 });
+      return;
+    }
     if (breatheActive && isAmbience(breathe.sound)) {
       driveRain({ key: breathe.sound, playing: breathe.phase === 'running' && !away, fadeInMs: 1500, pauseMs: away && !appActive ? 0 : 500 });
       return;
@@ -35,7 +40,7 @@ export function useForestRain(weather: ForestWeather, soundOn: boolean, breathe:
       driveRain({ key: null, playing: false, fadeOutMs: 1500 });
       return;
     }
-    if (weather === 'rain' && soundOn) {
+    if (weather === 'rain') {
       driveRain({ key: 'lightRain', playing: !away, fadeInMs: 5000, pauseMs: appActive ? 1200 : 0 });
       return;
     }

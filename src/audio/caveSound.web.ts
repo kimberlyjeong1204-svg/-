@@ -17,6 +17,9 @@ let rumble: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
 let crackleTimer: ReturnType<typeof setInterval> | null = null;
 let stopTimer: ReturnType<typeof setTimeout> | null = null;
 let intensity = 1;
+/** 장작불 음량(0~1, 환경음 설정). 동굴의 모든 소리(불·조약돌·종이·장작)에 함께 적용 */
+let fireVolume = 1;
+let fireActive = false;
 let flareUntil = 0;
 
 function setup(c: AudioContext) {
@@ -110,9 +113,21 @@ export function startCaveFire(fadeMs = 3000) {
   }
   if (!crackleTimer) crackleTimer = setInterval(crackleTick, 60);
   const now = c.currentTime;
+  fireActive = true;
   master!.gain.cancelScheduledValues(now);
   master!.gain.setValueAtTime(master!.gain.value, now);
-  master!.gain.linearRampToValueAtTime(0.9, now + fadeMs / 1000);
+  master!.gain.linearRampToValueAtTime(0.9 * fireVolume, now + fadeMs / 1000);
+}
+
+/** 환경음 설정의 장작불 음량 (0이면 동굴 소리 없음) */
+export function setCaveFireVolume(v: number, rampMs = 300) {
+  fireVolume = Math.max(0, Math.min(1, v));
+  const c = getContext();
+  if (!c || !master || !fireActive) return;
+  const now = c.currentTime;
+  master.gain.cancelScheduledValues(now);
+  master.gain.setValueAtTime(master.gain.value, now);
+  master.gain.linearRampToValueAtTime(0.9 * fireVolume, now + rampMs / 1000);
 }
 
 /** 동굴을 나감: 천천히 줄이고 멈춤 */
@@ -120,6 +135,7 @@ export function stopCaveFire(fadeMs = 2500) {
   const c = getContext();
   if (!c || !master) return;
   const now = c.currentTime;
+  fireActive = false;
   master.gain.cancelScheduledValues(now);
   master.gain.setValueAtTime(master.gain.value, now);
   master.gain.linearRampToValueAtTime(0, now + fadeMs / 1000);
@@ -227,3 +243,5 @@ export function pebbleHit(pan = 0, size = 1) {
 export function caveFireActive() {
   return rumble != null && stopTimer == null;
 }
+
+if (typeof window !== 'undefined') (window as unknown as { __shimpyoCave?: () => unknown }).__shimpyoCave = () => ({ active: caveFireActive(), volume: fireVolume });
