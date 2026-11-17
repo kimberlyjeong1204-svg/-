@@ -1,17 +1,25 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { registerServiceWorker } from '../lib/pwa';
+import { initAnalytics, trackPageView } from '../lib/analytics';
 import { colors } from '../theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 registerServiceWorker();
+initAnalytics();
 
 export default function RootLayout() {
+  // 방문 분석: 화면 주소가 바뀔 때마다 한 번(운영 웹에서만, 경로만)
+  const pathname = usePathname();
+  useEffect(() => {
+    trackPageView(pathname);
+  }, [pathname]);
+
   // 웹은 public/fonts/pretendard의 분할 글꼴(CSS)로 필요한 글자만 받습니다. 앱은 글꼴 파일을 함께 넣습니다.
   const [loaded, error] = useFonts({
     // 로고·슬로건 전용 고운바탕: 실제로 쓰는 글자만 남긴 파일 (scripts/subset-display-font.sh)
