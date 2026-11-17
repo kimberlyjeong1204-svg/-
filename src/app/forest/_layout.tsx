@@ -8,6 +8,8 @@ import { ForestSoundButton } from '../../components/forest/ForestSoundButton';
 import { SoundPrompt } from '../../components/forest/SoundPrompt';
 import { ForestGate } from '../../components/forest/ForestGate';
 import { KEYS, isBoolean, usePersistentState } from '../../lib/storage';
+import { GATE_HINGE_SFX, GATE_HINGE_VOLUME } from '../../audio/sounds';
+import { playOnce } from '../../audio/sfx';
 import { BackIcon, SoundOffIcon, SoundOnIcon } from '../../components/icons';
 import { useReduceMotion } from '../../components/BreathCircle';
 import { useForestAmbience } from '../../audio/useForestAmbience';
@@ -42,6 +44,17 @@ function ForestShell() {
     if (gate === 'pending' && gateReady) setGate(gateSeen ? 'off' : 'show');
   }, [gate, gateReady, gateSeen]);
   const atGate = gate === 'show' || gate === 'opening';
+
+  // 문 열기: 경첩 소리는 문이 열릴 때 딱 한 번 (소리를 켠 경우만). 숲소리는 그대로 이어짐
+  const hingePlayed = useRef(false);
+  const openGate = (withSound: boolean) => {
+    if (gate !== 'show') return;
+    setGate('opening');
+    if (withSound && !reduceMotion && GATE_HINGE_SFX != null && !hingePlayed.current) {
+      hingePlayed.current = true;
+      playOnce(GATE_HINGE_SFX, GATE_HINGE_VOLUME);
+    }
+  };
   // 입구에 있는 동안 숲 메뉴는 숨겨 두고, 도착한 뒤에도 숨긴 채로 시작 (화면을 누르면 나타남)
   useEffect(() => {
     if (atGate) hideUi();
@@ -67,7 +80,7 @@ function ForestShell() {
   const changeSound = (on: boolean) => {
     setSoundOn(on);
     // 문 앞에서 소리를 고르면 그대로 문이 열림
-    if (gate === 'show') setGate('opening');
+    openGate(on);
     if (on && !hintShown.current) {
       hintShown.current = true;
       showHint('소리가 들리지 않으면 무음 모드를 확인해 주세요.');
@@ -146,7 +159,7 @@ function ForestShell() {
           opening={gate === 'opening'}
           reduceMotion={reduceMotion}
           showTapHint={soundPrefReady && !needsSoundPrompt}
-          onRequestOpen={soundPrefReady && !needsSoundPrompt ? () => setGate('opening') : undefined}
+          onRequestOpen={soundPrefReady && !needsSoundPrompt ? () => openGate(soundOn) : undefined}
           onDone={() => {
             setGateSeen(true);
             setGate('off');

@@ -107,3 +107,10 @@ export const FOREST_TRACKS: Record<ForestTrackKey, Ambience> = {
 
 /** 숲 소리 기본 음량 */
 export const FOREST_DEFAULT_VOLUME: Record<ForestTrackKey, number> = { forestBugs: 0.35, forestWind: 0.2 };
+
+/**
+ * 숲 입구 문 여는 소리 (낮고 은은한 나무 경첩, 한 번만)
+ * 라이선스를 확인하고 프로젝트 소유자가 고른 음원만 연결합니다. 아직 없으면 null(소리 없이 문만 열림).
+ */
+export const GATE_HINGE_SFX: number | null = null;
+export const GATE_HINGE_VOLUME = 0.45;
