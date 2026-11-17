@@ -2,51 +2,80 @@ import type { Ground, WalkMix } from '../../audio/walkSound';
 
 /**
  * 숲 거닐기 장소 (장면 기반 이동: 숲길 → 폭포 → 큰 나무 아래)
- * 최종 장소 그림·녹음을 받으면 이 파일의 image·mix만 바꾸면 됩니다.
- * - image가 null이면 지금 숲 장면(움직이는 숲 그림)을 그대로 씀
- * - temporary: 임시 그림이면 true (완료 처리하지 않음)
- * - mix: 장소에서 들리는 소리(숲 기본 자연음 위에 더해짐). 이동하는 동안 다음 장소 소리로 천천히 바뀜
- * - 동굴은 지금처럼 숲 첫 화면에서 들어가고, 나중에 숲길의 갈림길(branch)로도 연결할 수 있게 자리만 둠
+ * 그림: 쉼표 숲·동굴 통합 자산 v1(가로 약 765×508). 밤 숲과 어울리게 조금 어둡고 청록빛으로 맞춤.
+ * 세로 화면에서는 그림 높이에 맞추고(가로는 잘림), 도착하면 panFrom → panTo로 천천히 옮겨 가며 장면 전체를 보여 줌.
+ * 중요한 것(폭포·나무 풍경)이 잘리지 않도록 panTo를 그 쪽에 둠. 고해상도 세로 그림을 받으면 image만 바꾸면 됨.
+ * 동굴은 지금처럼 숲 첫 화면에서 들어가고, 나중에 숲길 갈림길(branch)로도 연결할 수 있게 자리만 둠.
  */
 export type PlaceId = 'path' | 'waterfall' | 'tree';
 
 export type Place = {
   id: PlaceId;
   name: string;
-  image: number | null;
-  temporary: boolean;
+  image: number;
+  /** 그림 크기(px) */
+  w: number;
+  h: number;
+  /** 화면 가운데에 올 그림 가로 위치(0~1): 도착할 때 panFrom에서 panTo로 */
+  panFrom: number;
+  panTo: number;
   mix: WalkMix;
   ground: Ground;
-  /** 앉을 수 있는 곳 */
   canSit: boolean;
-  /** 큰 나무 아래: 나무 풍경이 매달린 가로 위치(0~1). 없으면 풍경 없음 */
-  chimeX?: number;
-  /** 갈림길(나중에 동굴 등) */
+  /** 나무 풍경이 매달린 나뭇가지 위치(그림 비율 좌표) */
+  chime?: { u: number; v: number };
   branch?: 'cave';
 };
 
 export const PLACES: Place[] = [
-  { id: 'path', name: '숲길', image: null, temporary: false, mix: { water: 0.18, leaves: 0.25, birdsNear: 0, birdsFar: 0.35 }, ground: 'leaves', canSit: false },
+  {
+    id: 'path',
+    name: '숲길',
+    image: require('../../../assets/forest/walk/path.webp'),
+    w: 765,
+    h: 506,
+    panFrom: 0.38,
+    panTo: 0.5,
+    mix: { waterNear: 0, waterFar: 0.35, leaves: 0.45, birdsNear: 0, birdsFar: 0.6 },
+    ground: 'leaves',
+    canSit: false,
+  },
   {
     id: 'waterfall',
     name: '폭포',
-    image: require('../../../assets/forest/walk/waterfall-temp.webp'),
-    temporary: true,
-    mix: { water: 1, leaves: 0.1, birdsNear: 0, birdsFar: 0.2 },
+    image: require('../../../assets/forest/walk/waterfall.webp'),
+    w: 763,
+    h: 506,
+    panFrom: 0.4,
+    panTo: 0.63,
+    mix: { waterNear: 1, waterFar: 0.35, leaves: 0.15, birdsNear: 0, birdsFar: 0.3 },
     ground: 'leaves',
     canSit: true,
   },
   {
     id: 'tree',
     name: '큰 나무 아래',
-    image: require('../../../assets/forest/walk/bigtree-temp.webp'),
-    temporary: true,
-    mix: { water: 0.08, leaves: 0.85, birdsNear: 0.8, birdsFar: 0.5 },
+    image: require('../../../assets/forest/walk/tree.webp'),
+    w: 765,
+    h: 508,
+    panFrom: 0.3,
+    panTo: 0.52,
+    mix: { waterNear: 0, waterFar: 0.15, leaves: 1, birdsNear: 0.9, birdsFar: 0.5 },
     ground: 'leaves',
     canSit: true,
-    chimeX: 0.66,
+    chime: { u: 0.62, v: 0.13 },
   },
 ];
 
 /** 한 장소에서 다음 장소까지 걷는 시간 */
 export const WALK_MS = 4200;
+/** 도착한 뒤 장면을 천천히 둘러보는 시간 */
+export const LOOK_MS = 6000;
+
+/** 그림을 화면 높이에 맞춰 놓을 때: center(그림 가로 위치)를 화면 가운데에 */
+export function placeCover(p: Place, w: number, h: number, center: number) {
+  const k = Math.max(h / p.h, w / p.w);
+  const imgW = p.w * k;
+  const ox = Math.min(0, Math.max(w - imgW, w / 2 - center * imgW));
+  return { k, ox, oy: (h - p.h * k) / 2, imgW, imgH: p.h * k };
+}

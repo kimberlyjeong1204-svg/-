@@ -121,9 +121,11 @@ export function CaveScene({ reduceMotion, flare = 0 }: Props) {
 
       // 4) 불꽃 입자
       fx.globalCompositeOperation = 'lighter';
-      const spawn = (reduce ? 18 : 70) * power * dt * 10;
+      // 그림에 불이 있으면(sparksOnly) 불꽃은 겹치지 않게 불티만
+      const sparksOnly = (FIRE as { sparksOnly?: boolean }).sparksOnly === true;
+      const spawn = (reduce ? 18 : 70) * power * dt * 10 * (sparksOnly ? 0.06 : 1);
       for (let i = 0; i < spawn; i++) {
-        const spark = Math.random() < 0.025 * power;
+        const spark = sparksOnly || Math.random() < 0.025 * power;
         parts.push({
           x: f.x + (Math.random() - 0.5) * 70 * u,
           y: f.y - 6 * u,

@@ -1,14 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Image, Platform, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForestSpace } from '../../components/forest/ForestSpace';
 import { FOREST_TEXT, ForestButton } from '../../components/forest/ui';
 import { WindChime } from '../../components/forest/WindChime';
-import { PLACES, WALK_MS, type Place } from '../../components/forest/walkConfig';
-import { FOREST_IMAGE, coverView, forestImages } from '../../components/forest/forestConfig';
+import { LOOK_MS, PLACES, WALK_MS, placeCover, type Place } from '../../components/forest/walkConfig';
 import { useReduceMotion } from '../../components/BreathCircle';
-import { leafRustle } from '../../audio/forestTouchSound';
 import { setWalkMix, startSteps, stopSteps, stopWalk } from '../../audio/walkSound';
 
 /**
@@ -21,13 +19,13 @@ import { setWalkMix, startSteps, stopSteps, stopWalk } from '../../audio/walkSou
  * - 장소에 도착하면 필요한 선택만 작게(잠시 앉기 · 계속 걷기 · 돌아가기). 앉으면 버튼은 금방 숨고, 화면을 누르면 다시
  * - 큰 나무 아래: 나뭇가지에 매달린 나무 풍경(건드리거나 끌어 흔들기)
  * - 걸음 수·거리·타이머·미션 없음. 아무것도 하지 않고 머물러도 됨
- * 폭포·큰 나무 그림은 지금 숲 그림에서 잘라 만든 임시 장면입니다(walkConfig.ts의 temporary).
+ * 장면 그림은 통합 자산 v1(가로 그림). 세로 화면에서는 높이에 맞추고 도착하면 천천히 둘러봄(walkConfig.ts).
  */
 const HIDE_DELAY = 5000;
 const SIT_HIDE_DELAY = 3200;
 
 export default function ForestWalk() {
-  const { uiOpacity, uiHidden, wakeUi, setHideDelay, touchForest, soundOn, soundStatus } = useForestSpace();
+  const { uiOpacity, uiHidden, wakeUi, setHideDelay, soundOn, soundStatus } = useForestSpace();
   const { width, height } = useWindowDimensions();
   const reduceMotion = useReduceMotion();
   const native = Platform.OS !== 'web';
@@ -40,6 +38,17 @@ export default function ForestWalk() {
   const sit = useRef(new Animated.Value(0)).current;
   const nameFade = useRef(new Animated.Value(0)).current;
   const place = PLACES[at];
+  // 도착한 장소를 천천히 둘러봄(가로 그림을 세로 화면에서 잘리지 않게)
+  const look = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+  const lookAround = useCallback(() => {
+    look.setValue(reduceMotion ? 1 : 0);
+    if (!reduceMotion) Animated.timing(look, { toValue: 1, duration: LOOK_MS, easing: Easing.inOut(Easing.cubic), useNativeDriver: native }).start();
+  }, [look, reduceMotion, native]);
+  useEffect(() => {
+    lookAround();
+    // 처음 들어올 때 한 번
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -91,6 +100,7 @@ export default function ForestWalk() {
       stopSteps(); // 멈추면 발소리도 바로 그침
       setAt(to);
       setWalk(null);
+      lookAround();
       showName();
       wakeUi();
     });
@@ -121,42 +131,30 @@ export default function ForestWalk() {
 
   return (
     <View style={styles.root}>
-      {/* 숲길에서는 움직이는 숲을 그대로 만질 수 있음 */}
-      <Pressable
-        style={StyleSheet.absoluteFill}
-        onPress={(e) => {
-          if (walk || place.image) return;
-          touchForest(e.nativeEvent.pageX, e.nativeEvent.pageY);
-          if (soundOn) leafRustle((e.nativeEvent.pageX / width) * 2 - 1);
-        }}
-        accessible={false}
-      />
 
       {/* 장소 장면 */}
       {walk ? (
         <>
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, fromStyle]}>
-            <PlaceImage place={PLACES[walk.from]} w={width} h={height} />
+            <PlaceImage place={PLACES[walk.from]} w={width} h={height} pan={1} />
           </Animated.View>
           <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, toStyle]}>
-            <PlaceImage place={PLACES[walk.to]} w={width} h={height} />
+            <PlaceImage place={PLACES[walk.to]} w={width} h={height} pan={0} />
           </Animated.View>
         </>
       ) : (
-        place.image && (
-          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, sitStyle]}>
-            <PlaceImage place={place} w={width} h={height} />
-          </Animated.View>
-        )
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, sitStyle]}>
+          <PlaceImage place={place} w={width} h={height} pan={look} />
+        </Animated.View>
       )}
       {/* 앉으면 가장자리를 조금 어둡게(풍경과 소리에 집중) */}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.sitDim, { opacity: Animated.multiply(sit, 0.35) }]} />
 
       {/* 큰 나무 아래: 나뭇가지에 매달린 나무 풍경 */}
-      {!walk && place.chimeX != null && (
-        <View style={styles.chimeWrap} pointerEvents="box-none">
-          <WindChime width={Math.min(width, 520)} soundOn={audible} reduceMotion={reduceMotion} anchorX={place.chimeX} />
-        </View>
+      {!walk && place.chime && (
+        <ChimeOnBranch place={place} w={width} h={height} look={look} sit={sitStyle}>
+          <WindChime width={width} soundOn={audible} reduceMotion={reduceMotion} anchorX={0.5} />
+        </ChimeOnBranch>
       )}
 
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']} pointerEvents="box-none">
@@ -187,22 +185,30 @@ export default function ForestWalk() {
   );
 }
 
-/** 장소 그림: 숲길은 숲 장면과 같은 구도의 숲 그림, 나머지는 장소 그림을 화면에 꽉 차게 */
-function PlaceImage({ place, w, h }: { place: Place; w: number; h: number }) {
-  if (!place.image) {
-    const v = coverView(w, h);
-    const imgW = w / v.sx;
-    const imgH = imgW * (FOREST_IMAGE.height / FOREST_IMAGE.width);
-    return (
-      <View style={[StyleSheet.absoluteFill, styles.ground]}>
-        <Image source={forestImages.background} style={{ position: 'absolute', width: imgW, height: imgH, left: -v.ox * imgW, top: -v.oy * imgH }} />
-      </View>
-    );
-  }
+/** 장소 그림: 화면 높이에 맞추고, pan(0~1)에 따라 panFrom → panTo로 가로 이동 */
+function PlaceImage({ place, w, h, pan }: { place: Place; w: number; h: number; pan: number | Animated.Value }) {
+  const a = placeCover(place, w, h, place.panFrom);
+  const b = placeCover(place, w, h, place.panTo);
+  const tx = typeof pan === 'number' ? a.ox + (b.ox - a.ox) * pan : pan.interpolate({ inputRange: [0, 1], outputRange: [a.ox, b.ox] });
   return (
     <View style={[StyleSheet.absoluteFill, styles.ground]}>
-      <Image source={place.image} style={{ width: w, height: h }} resizeMode="cover" />
+      <Animated.Image source={place.image} style={{ position: 'absolute', top: b.oy, left: 0, width: b.imgW, height: b.imgH, transform: [{ translateX: tx }] }} />
     </View>
+  );
+}
+
+/** 나무 풍경을 그림 속 나뭇가지 자리에 매달고, 장면을 둘러볼 때 함께 움직임 */
+function ChimeOnBranch({ place, w, h, look, sit, children }: { place: Place; w: number; h: number; look: Animated.Value; sit: object; children: ReactNode }) {
+  const a = placeCover(place, w, h, place.panFrom);
+  const b = placeCover(place, w, h, place.panTo);
+  const u = place.chime!.u, v = place.chime!.v;
+  // 풍경 상자(화면 폭) 가운데 = 나뭇가지 x, 위쪽 = 나뭇가지 y
+  const xA = a.ox + u * a.imgW - w / 2, xB = b.ox + u * b.imgW - w / 2;
+  const y = b.oy + v * b.imgH;
+  return (
+    <Animated.View pointerEvents="box-none" style={[{ position: 'absolute', left: 0, top: y, width: w, transform: [{ translateX: look.interpolate({ inputRange: [0, 1], outputRange: [xA, xB] }) }] }, sit]}>
+      {children}
+    </Animated.View>
   );
 }
 
@@ -212,7 +218,6 @@ const styles = StyleSheet.create({
   ground: { backgroundColor: '#0B1A1E', overflow: 'hidden' },
   sitDim: { backgroundColor: '#03080A' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  chimeWrap: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center' },
   bottom: { alignItems: 'center', gap: 10, paddingBottom: 28, paddingHorizontal: 12 },
   row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
 });

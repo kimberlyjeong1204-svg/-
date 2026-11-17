@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Svg, { Defs, Ellipse, RadialGradient, Stop } from 'react-native-svg';
 import { pebbleHit } from '../../audio/caveSound';
-import { fireOnScreen } from './caveConfig';
+import { childOnScreen, fireOnScreen } from './caveConfig';
 
 /**
  * 조약돌 던지기
@@ -30,16 +30,16 @@ export function PebbleThrow({ soundOn, reduceMotion }: Props) {
 
   // 던질 수 있는 곳: 동굴 안쪽 암벽(화면 위쪽~가운데). 장작불·사람(아이) 쪽과 화면 밖은 제외
   const fire = fireOnScreen(W, H);
+  const child = childOnScreen(W, H);
   const keepOut = (x: number, y: number) =>
     (Math.abs(x - fire.x) < W * 0.14 && y > fire.y - H * 0.3) || // 장작불과 그 위 연기
-    (x > W * 0.74 && y > H * 0.5); // 앉아 있는 사람 쪽
+    (x > child.x0 - 30 && x < child.x1 + 30 && y > child.y0 - 40); // 방석에 앉은 아이
   const toWall = (x: number, y: number) => {
     let tx = Math.max(W * 0.08, Math.min(W * 0.92, x));
     let ty = Math.max(H * 0.14, Math.min(H * 0.56, y));
     if (keepOut(tx, ty)) {
       // 금지 영역이면 가장 가까운 위쪽 암벽으로
-      ty = Math.min(ty, fire.y - H * 0.32);
-      if (tx > W * 0.74) ty = Math.min(ty, H * 0.48);
+      ty = Math.min(ty, fire.y - H * 0.32, child.y0 - 50);
     }
     return { x: tx, y: ty };
   };
