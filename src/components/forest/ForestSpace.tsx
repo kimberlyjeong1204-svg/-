@@ -54,6 +54,10 @@ type ForestSpaceValue = {
   touchForest: (x: number, y: number) => void;
   /** 숲 장면이 만짐을 받도록 등록 */
   onForestTouch: (fn: ((x: number, y: number) => void) | null) => void;
+  /** 위쪽 뒤로 가기 전에 화면이 먼저 처리할 일(확인창·근접 화면 닫기). false를 돌려주면 뒤로 가지 않음 */
+  setLeaveGuard: (fn: (() => boolean) | null) => void;
+  /** 뒤로 가도 되는지 (등록된 처리 실행) */
+  runLeaveGuard: () => boolean;
 };
 
 export type BreatheAudio = { phase: SessionPhase; sound: SoundKey };
@@ -107,6 +111,11 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
   const onForestTouch = useCallback((fn: ((x: number, y: number) => void) | null) => {
     touchListener.current = fn;
   }, []);
+  const leaveGuard = useRef<(() => boolean) | null>(null);
+  const setLeaveGuard = useCallback((fn: (() => boolean) | null) => {
+    leaveGuard.current = fn;
+  }, []);
+  const runLeaveGuard = useCallback(() => (leaveGuard.current ? leaveGuard.current() : true), []);
   const [uiHidden, setUiHidden] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -166,6 +175,8 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
         touchForest,
         onForestTouch,
         setAutoHide,
+        setLeaveGuard,
+        runLeaveGuard,
       }}
     >
       {children}

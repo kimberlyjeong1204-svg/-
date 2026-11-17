@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Asset } from 'expo-asset';
-import { CAVE_IMAGE, CAVE_PAN, FIRE, caveCover, easePan } from './caveConfig';
+import { CAVE_IMAGE, CAVE_PAN, CHILD, FIRE, caveCover, easePan } from './caveConfig';
+import { createFire } from './fireRenderer';
 
 /**
  * 동굴 화면 (웹앱) — 바위 그림 위에 장작불을 코드로 그립니다.
@@ -10,11 +11,13 @@ import { CAVE_IMAGE, CAVE_PAN, FIRE, caveCover, easePan } from './caveConfig';
  * - 동작 줄이기: 불꽃이 아주 천천히, 일렁임 작게
  * - 화면이 보이지 않으면 그리기를 멈춤
  */
-type Props = { reduceMotion: boolean; flare?: number };
+/** paused: 불 가까이 보기가 화면을 다 덮은 동안 그리기를 쉼 */
+type Props = { reduceMotion: boolean; flare?: number; paused?: boolean };
 
-type P = { x: number; y: number; vx: number; vy: number; life: number; age: number; size: number; spark: boolean };
 
-export function CaveScene({ reduceMotion, flare = 0 }: Props) {
+export function CaveScene({ reduceMotion, flare = 0, paused = false }: Props) {
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
   const bgRef = useRef<HTMLCanvasElement | null>(null);
   const fxRef = useRef<HTMLCanvasElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -32,9 +35,8 @@ export function CaveScene({ reduceMotion, flare = 0 }: Props) {
     if (!bg || !fx) return;
     let W = 1, H = 1, dpr = 1, raf = 0, alive = true;
     let img: HTMLImageElement | null = null;
-    const parts: P[] = [];
+    const fire = createFire(3);
     let last = performance.now() / 1000;
-    let flick = 1;
 
     // 들어오면 넓은 동굴을 먼저 보여 주고 장작불 쪽으로 천천히 옮겨 감
     const t0 = performance.now();
@@ -62,6 +64,7 @@ export function CaveScene({ reduceMotion, flare = 0 }: Props) {
       const now = performance.now() / 1000;
       const dt = Math.min(0.05, now - last);
       last = now;
+      if (pausedRef.current) return;
       const reduce = reduceRef.current;
       if (pan < 1) {
         pan = reduce ? 1 : easePan(Math.min(1, (performance.now() - t0) / CAVE_PAN.durationMs));
@@ -69,13 +72,10 @@ export function CaveScene({ reduceMotion, flare = 0 }: Props) {
       }
       const c = caveCover(W, H, pan);
       const f = c.toScreen(FIRE.x, FIRE.y);
-      const u = (W / 800) * FIRE.scale; // 화면 크기 기준 단위
+      const u = c.k * FIRE.scale * 2.2; // 불빛 범위 단위
       const flareAmt = Math.max(0, 1 - (now - flareAt.current) / 3.2);
-      const power = 1 + 0.9 * flareAmt;
-      // 일렁임: 느린 물결 + 빠른 떨림, 부드럽게
-      const target = reduce ? 1 : 0.86 + 0.08 * Math.sin(now * 1.7) + 0.05 * Math.sin(now * 4.3 + 1) + 0.06 * (Math.random() - 0.5);
-      flick += (target - flick) * Math.min(1, dt * 8);
-      const glow = flick * power;
+      const power = 1 + 0.6 * flareAmt;
+      const glow = fire.level() * power;
 
       fx.clearRect(0, 0, W, H);
       // 1) 바위를 비추는 따뜻한 불빛
@@ -94,75 +94,17 @@ export function CaveScene({ reduceMotion, flare = 0 }: Props) {
       fx.fillStyle = g;
       fx.fillRect(0, 0, W, H);
 
-      // 3) 장작더미(임시 그림일 때만)
-      if (CAVE_IMAGE.drawLogs) {
-        fx.save();
-        fx.translate(f.x, f.y + 8 * u);
-        for (const [rot, len] of [[-0.35, 150], [0.38, 140], [0.05, 120]] as const) {
-          fx.save();
-          fx.rotate(rot);
-          const lg = fx.createLinearGradient(0, -12 * u, 0, 12 * u);
-          lg.addColorStop(0, '#3a2a1e');
-          lg.addColorStop(1, '#140d08');
-          fx.fillStyle = lg;
-          fx.beginPath();
-          fx.roundRect(-len * u * 0.5, -11 * u, len * u, 22 * u, 10 * u);
-          fx.fill();
-          fx.restore();
-        }
-        g = fx.createRadialGradient(0, 0, 0, 0, 0, 70 * u);
-        g.addColorStop(0, `rgba(255,120,40,${0.55 * glow})`);
-        g.addColorStop(1, 'rgba(255,80,20,0)');
-        fx.globalCompositeOperation = 'lighter';
-        fx.fillStyle = g;
-        fx.fillRect(-70 * u, -70 * u, 140 * u, 140 * u);
-        fx.restore();
-      }
-
-      // 4) 불꽃 입자
+      // 3) 아이·방석에 비치는 불빛 (불 쪽 옆면이 따뜻하게 일렁임)
+      const ch = c.toScreen(CHILD.x + CHILD.w * 0.25, CHILD.y);
       fx.globalCompositeOperation = 'lighter';
-      // 그림에 불이 있으면(sparksOnly) 불꽃은 겹치지 않게 불티만
-      const sparksOnly = (FIRE as { sparksOnly?: boolean }).sparksOnly === true;
-      const spawn = (reduce ? 18 : 70) * power * dt * 10 * (sparksOnly ? 0.06 : 1);
-      for (let i = 0; i < spawn; i++) {
-        const spark = sparksOnly || Math.random() < 0.025 * power;
-        parts.push({
-          x: f.x + (Math.random() - 0.5) * 70 * u,
-          y: f.y - 6 * u,
-          vx: (Math.random() - 0.5) * (spark ? 60 : 18) * u,
-          vy: -(spark ? 160 + Math.random() * 120 : 60 + Math.random() * 70) * u * (reduce ? 0.4 : 1),
-          life: spark ? 1.4 + Math.random() : 0.55 + Math.random() * 0.5,
-          age: 0,
-          size: spark ? 1.6 * u : (14 + Math.random() * 14) * u * (0.85 + 0.25 * power),
-          spark,
-        });
-      }
-      for (let i = parts.length - 1; i >= 0; i--) {
-        const p = parts[i];
-        p.age += dt;
-        if (p.age > p.life) {
-          parts.splice(i, 1);
-          continue;
-        }
-        const t = p.age / p.life;
-        p.x += (p.vx + Math.sin(now * 3 + p.y * 0.02) * 12 * u) * dt;
-        p.y += p.vy * dt;
-        p.vx *= 0.98;
-        if (p.spark) {
-          fx.fillStyle = `rgba(255,${190 - 80 * t},90,${(1 - t) * 0.9})`;
-          fx.fillRect(p.x, p.y, p.size * 1.4, p.size * 1.4);
-          continue;
-        }
-        const r = p.size * (1 - 0.65 * t);
-        const a = (1 - t) * (t < 0.15 ? t / 0.15 : 1) * 0.5;
-        const col = t < 0.3 ? [255, 214, 140] : t < 0.6 ? [255, 140, 60] : [190, 60, 30];
-        g = fx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-        g.addColorStop(0, `rgba(${col[0]},${col[1]},${col[2]},${a})`);
-        g.addColorStop(1, `rgba(${col[0]},${col[1]},${col[2]},0)`);
-        fx.fillStyle = g;
-        fx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
-      }
-      if (parts.length > 600) parts.splice(0, parts.length - 600);
+      g = fx.createRadialGradient(ch.x, ch.y, 0, ch.x, ch.y, CHILD.h * CAVE_IMAGE.height * c.k * 0.75);
+      g.addColorStop(0, `rgba(255,150,80,${0.16 * fire.level() * power})`);
+      g.addColorStop(1, 'rgba(255,120,60,0)');
+      fx.fillStyle = g;
+      fx.fillRect(0, 0, W, H);
+
+      // 4) 살아 있는 불꽃 (그림의 멈춘 불꽃은 지운 사본을 씀)
+      fire.draw(fx, f.x, f.y, c.k * FIRE.scale, now, dt, power, reduce);
       fx.globalCompositeOperation = 'source-over';
     };
 
