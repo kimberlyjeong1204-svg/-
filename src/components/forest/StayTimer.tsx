@@ -7,6 +7,7 @@ import { FOREST_UI } from './forestUi';
 import { Toggle } from '../settingsParts';
 import { formatTime } from '../../lib/useSession';
 import { stayBell } from '../../audio/stayBell';
+import { trackEvent } from '../../lib/analytics';
 import { radius, type } from '../../theme';
 
 /**
@@ -26,7 +27,7 @@ export const STAY_MINUTES = [1, 5, 10] as const;
 /** 끝난 시각에서 이만큼 안에 알아채야 「제때」로 보고 종소리를 울림 */
 const ON_TIME_MS = 2000;
 
-type Running = { endAt: number; place: StayPlace; chime: boolean; id: number };
+type Running = { endAt: number; place: StayPlace; chime: boolean; id: number; minutes: number };
 type Ctx = {
   running: Running | null;
   /** 지금 장소에서 시작할 수 있으면 그 장소 */
@@ -64,7 +65,8 @@ export function StayTimerProvider({ children }: { children: ReactNode }) {
     (minutes: number, chime: boolean) => {
       if (!place) return;
       setDone(false);
-      setRunning({ endAt: Date.now() + minutes * msMul(), place, chime, id: nextId.current++ });
+      setRunning({ endAt: Date.now() + minutes * msMul(), place, chime, id: nextId.current++, minutes });
+      trackEvent({ name: 'stay_timer_start', minutes, place, chime });
     },
     [place],
   );
@@ -81,11 +83,15 @@ export function StayTimerProvider({ children }: { children: ReactNode }) {
   // 끝 확인: 끝나는 시각에 한 번 + 화면이 다시 보일 때
   useEffect(() => {
     if (!running) return;
+    let finished = false; // 끝 처리(종소리·기록)는 한 번만
     const finish = () => {
+      if (finished) return true;
       const now = Date.now();
       if (now < running.endAt) return false;
+      finished = true;
       const onTime = isVisible() && now - running.endAt < ON_TIME_MS;
-      if (onTime && running.chime && soundRef.current) stayBell();
+      const rang = onTime && running.chime && soundRef.current ? stayBell() : false;
+      trackEvent({ name: 'stay_timer_complete', minutes: running.minutes, place: running.place, chime_played: rang });
       setRunning((r) => (r && r.id === running.id ? null : r));
       setDone(true);
       wakeUi();
