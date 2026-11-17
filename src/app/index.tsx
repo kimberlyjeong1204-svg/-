@@ -61,7 +61,7 @@ export default function Home() {
         <View style={[styles.actions, compact && styles.actionsCompact]}>
           <ForestButton label="숲으로 들어가기" variant="primary" size="lg" onPress={() => router.push('/forest')} />
           <View style={styles.links}>
-            <Pressable onPress={() => router.push('/forest/breathe')} accessibilityRole="link" style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
+            <Pressable onPress={() => router.push('/forest/breathe?start=1')} accessibilityRole="link" style={({ pressed }) => [styles.link, pressed && styles.pressed]}>
               <Text style={styles.linkLabel}>숨 고르기</Text>
             </Pressable>
             <Text style={styles.dot} importantForAccessibility="no" accessibilityElementsHidden>

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Asset } from 'expo-asset';
-import { FOREST, FOREST_IMAGE, coverView, forest, forestImages } from './forestConfig';
+import { CAVE_SPOT, FOREST, FOREST_IMAGE, coverView, forest, forestImages } from './forestConfig';
 
 /**
  * 숲속 휴식 공간 (웹앱)
@@ -14,11 +14,19 @@ import { FOREST, FOREST_IMAGE, coverView, forest, forestImages } from './forestC
  *   동작 줄이기이면 빗줄기 없이 젖은 느낌과 안개만.
  */
 
-type Props = { reduceMotion: boolean; rain?: boolean; paused?: boolean };
+type Props = {
+  reduceMotion: boolean;
+  rain?: boolean;
+  paused?: boolean;
+  /** 숲 그림을 만지면(창 기준 좌표) 잎이 그 자리에서 흔들리고 근처 반딧불이가 밝아짐 */
+  registerTouch?: (fn: ((x: number, y: number) => void) | null) => void;
+  /** 숲 속 동굴 입구의 옅은 장작불 빛 */
+  caveGlow?: boolean;
+};
 
 const VS = 'attribute vec2 p; varying vec2 v; void main(){ v = vec2(p.x*0.5+0.5, 0.5-p.y*0.5); gl_Position = vec4(p,0.,1.); }';
 const FS = `precision mediump float; varying vec2 v;
-  uniform sampler2D bg, mask; uniform float t, amp, wet; uniform vec4 view; uniform vec2 img;
+  uniform sampler2D bg, mask; uniform float t, amp, wet; uniform vec4 view; uniform vec2 img; uniform vec3 touch;
   void main(){
     vec2 uv = view.zw + v * view.xy;
     float m = texture2D(mask, uv).r;
@@ -26,6 +34,11 @@ const FS = `precision mediump float; varying vec2 v;
     float gust = 0.65 + 0.35 * sin(t * 0.071 + 1.3);
     vec2 d = vec2(sin(t * 0.52 + ph) * 0.8 + sin(t * 0.21 + ph * 1.7) * 0.45,
                   sin(t * 0.39 + ph * 1.3) * 0.35);
+    // 만진 자리: 잎이 동그랗게 번지듯 흔들렸다 잦아듦
+    vec2 tp = (uv - touch.xy) * vec2(img.x / img.y, 1.0);
+    float td = length(tp);
+    float rip = exp(-td * 9.0) * sin(td * 70.0 - touch.z * 10.0) * exp(-touch.z * 1.3);
+    d += normalize(tp + 1e-5) * rip * 3.5;
     vec3 col = texture2D(bg, uv + d * m * amp * gust * 5.0 / img).rgb;
     // 비에 젖은 숲: 채도를 조금 낮추고, 조금 어둡고 차갑게. 앞쪽 잎에는 드문드문 은은한 반짝임
     float lum = dot(col, vec3(0.299, 0.587, 0.114));
@@ -71,7 +84,9 @@ function loadImage(src: string) {
 type Drop = { x: number; y: number; z: number; land: number; len: number };
 type Splash = { x: number; y: number; age: number; size: number; leaf: boolean };
 
-export function ForestScene({ reduceMotion, rain = false, paused = false }: Props) {
+export function ForestScene({ reduceMotion, rain = false, paused = false, registerTouch, caveGlow = false }: Props) {
+  const caveGlowRef = useRef(caveGlow);
+  caveGlowRef.current = caveGlow;
   const rainRef = useRef(rain);
   rainRef.current = rain;
   // 동굴처럼 숲이 가려져 있을 때는 그리지 않음(배터리 절약)
@@ -93,6 +108,8 @@ export function ForestScene({ reduceMotion, rain = false, paused = false }: Prop
     if (!gl || !fx) return;
 
     let W = 0, H = 0, view = coverView(1, 1), raf = 0, alive = true;
+    // 만진 자리(그림 좌표)와 시각
+    let touchU = -1, touchV = -1, touchAt = -100;
     // 비의 양(0~1). 켜고 끌 때 8초에 걸쳐 바뀜
     let wetAmt = rainRef.current ? 1 : 0;
     const drops: Drop[] = [];
@@ -217,6 +234,19 @@ export function ForestScene({ reduceMotion, rain = false, paused = false }: Prop
       // 비가 오면 별·반딧불이는 줄어듦
       const dim = 1 - 0.75 * wetAmt;
       fx.globalCompositeOperation = 'lighter';
+      // 숲 속 동굴 입구: 나무 사이로 장작불 빛이 아주 옅게 일렁임
+      if (caveGlowRef.current) {
+        const [cx, cy] = toScreen(CAVE_SPOT.u, CAVE_SPOT.v);
+        const fl = reduce ? 0.85 : 0.75 + 0.15 * Math.sin(now * 2.1) + 0.1 * Math.sin(now * 5.3 + 1.7);
+        const r = 60 * s * 3;
+        const g = fx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g.addColorStop(0, `rgba(255,170,90,${0.42 * fl * (1 - 0.4 * wetAmt)})`);
+        g.addColorStop(0.12, `rgba(255,150,70,${0.22 * fl})`);
+        g.addColorStop(0.45, `rgba(220,110,50,${0.07 * fl})`);
+        g.addColorStop(1, 'rgba(180,80,30,0)');
+        fx.fillStyle = g;
+        fx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      }
       for (const st of stars) {
         const tw = reduce ? 0.4 : 0.5 + 0.5 * Math.sin(now * st.w + st.p);
         const a = FOREST.starTwinkle * 0.32 * tw * tw * dim;
@@ -269,6 +299,7 @@ export function ForestScene({ reduceMotion, rain = false, paused = false }: Prop
       wetAmt += ((rainRef.current ? 1 : 0) - wetAmt) * Math.min(1, dt / 2.6); // 약 8초에 걸쳐 바뀜
       if (Math.abs((rainRef.current ? 1 : 0) - wetAmt) < 0.002) wetAmt = rainRef.current ? 1 : 0;
       gl.uniform1f(uni.wet, wetAmt);
+      gl.uniform3f(uni.touch, touchU, touchV, now - touchAt);
       gl.uniform4f(uni.view, view.sx, view.sy, view.ox, view.oy);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       drawFx(now, dt);
@@ -301,7 +332,7 @@ export function ForestScene({ reduceMotion, rain = false, paused = false }: Prop
       gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
       texture(bg, 0);
       texture(mask, 1);
-      for (const n of ['t', 'amp', 'wet', 'view', 'img']) uni[n] = gl.getUniformLocation(prog, n);
+      for (const n of ['t', 'amp', 'wet', 'touch', 'view', 'img']) uni[n] = gl.getUniformLocation(prog, n);
       gl.uniform1i(gl.getUniformLocation(prog, 'bg'), 0);
       gl.uniform1i(gl.getUniformLocation(prog, 'mask'), 1);
       gl.uniform2f(uni.img, FOREST_IMAGE.width, FOREST_IMAGE.height);
@@ -309,6 +340,26 @@ export function ForestScene({ reduceMotion, rain = false, paused = false }: Prop
       raf = requestAnimationFrame(frame);
     })().catch(() => {
       // 이미지를 못 불러오면 짙은 숲색 바탕만 보입니다.
+    });
+
+    // 숲 만지기: 잎 흔들림 + 근처 반딧불이가 천천히 밝아지며 조금 다가옴
+    registerTouch?.((x, y) => {
+      const r = box.getBoundingClientRect();
+      const u = view.ox + ((x - r.left) / Math.max(1, r.width)) * view.sx;
+      const v = view.oy + ((y - r.top) / Math.max(1, r.height)) * view.sy;
+      touchU = u;
+      touchV = v;
+      touchAt = performance.now() / 1000;
+      const now = touchAt;
+      for (const f of flies) {
+        const du = (f.u - u) * (FOREST_IMAGE.width / FOREST_IMAGE.height), dv = f.v - v;
+        if (du * du + dv * dv < 0.018) {
+          f.target = rand(0.7, 1);
+          f.next = now + rand(2.2, 4);
+          f.u += (u - f.u) * 0.18;
+          f.v += (v - f.v) * 0.18;
+        }
+      }
     });
 
     const ro = new ResizeObserver(layout);
@@ -319,6 +370,7 @@ export function ForestScene({ reduceMotion, rain = false, paused = false }: Prop
       cancelAnimationFrame(raf);
       ro.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
+      registerTouch?.(null);
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     };
   }, []);

@@ -42,7 +42,7 @@ export function BreathRing({ values, size = 140 }: { values: Values; size?: numb
           <Defs>
             <RadialGradient id="ringInner" cx="50%" cy="50%" r="50%">
               <Stop offset="0.55" stopColor="#CFE6DA" stopOpacity={0} />
-              <Stop offset="0.92" stopColor="#CFE6DA" stopOpacity={0.16} />
+              <Stop offset="0.92" stopColor="#CFE6DA" stopOpacity={0.24} />
               <Stop offset="1" stopColor="#CFE6DA" stopOpacity={0} />
             </RadialGradient>
           </Defs>
@@ -50,10 +50,15 @@ export function BreathRing({ values, size = 140 }: { values: Values; size?: numb
         </Svg>
       </Animated.View>
 
-      {/* 고리 선 */}
+      {/* 고리 선: 기본 선 + 들이쉴수록 밝아지는 선(리듬이 안내 문구 없이도 보이게) */}
       <Svg width={size} height={size} viewBox="0 0 100 100" style={styles.layer}>
-        <Circle cx={50} cy={50} r={48.6} fill="none" stroke="#EDE6D3" strokeOpacity={0.62} strokeWidth={1.1} />
+        <Circle cx={50} cy={50} r={48.6} fill="none" stroke="#EDE6D3" strokeOpacity={0.5} strokeWidth={1.2} />
       </Svg>
+      <Animated.View style={[styles.layer, { width: size, height: size, opacity: values.tone }]}>
+        <Svg width={size} height={size} viewBox="0 0 100 100">
+          <Circle cx={50} cy={50} r={48.4} fill="none" stroke="#F4EEDD" strokeOpacity={0.85} strokeWidth={1.8} />
+        </Svg>
+      </Animated.View>
     </Animated.View>
   );
 }

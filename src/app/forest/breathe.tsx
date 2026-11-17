@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBreathAnimation, useReduceMotion } from '../../components/BreathCircle';
 import { FadeInText } from '../../components/FadeInText';
@@ -42,7 +42,10 @@ const isDuration = (v: unknown): v is number => v === 30 || v === 60 || v === 18
 export default function ForestBreathe() {
   const { uiOpacity, uiHidden, setAutoHide, wakeUi, setForestHold, setBreatheAudio } = useForestSpace();
   // 마지막으로 고른 시간을 기억 (다시 와도 그대로)
-  const [durationSec, setDurationSec] = usePersistentState<number>(KEYS.breathDuration, 60, isDuration);
+  const [durationSec, setDurationSec, durationReady] = usePersistentState<number>(KEYS.breathDuration, 60, isDuration);
+  // 숲 메뉴·홈에서 「숨 고르기」를 누르면 한 번에 시작 (?start=1)
+  const { start } = useLocalSearchParams<{ start?: string }>();
+  const autoStarted = useRef(false);
   const [rhythmKey, setRhythmKey] = usePersistentState<RhythmKey>(KEYS.breathRhythm, 'base', isOneOf(['base', 'slow'] as const));
   const [sound, setSound] = useSoundChoice();
   const rhythm = RHYTHMS[rhythmKey];
@@ -69,6 +72,15 @@ export default function ForestBreathe() {
   );
   const session = useSession(durationSec, onFrame);
   const { phase } = session;
+  // 한 번의 터치로 시작: 저장된 시간을 읽은 뒤 바로 시작
+  useEffect(() => {
+    if (start !== '1' || autoStarted.current || !durationReady || phase !== 'idle') return;
+    autoStarted.current = true;
+    const t = setTimeout(() => session.toggle(), 450);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start, durationReady, phase]);
+
   // 저장된 시간을 읽어 오면(시작 전) 타이머에 반영
   const resetRef = useRef(session.reset);
   resetRef.current = session.reset;
@@ -151,7 +163,7 @@ export default function ForestBreathe() {
       <View style={styles.topGap} />
 
       <View style={styles.stage}>
-        <BreathRing values={anim.values} size={140} />
+        <BreathRing values={anim.values} size={156} />
         {/* 호흡 안내는 조작 버튼이 숨어도 계속 보임 */}
         <View style={styles.cueWrap} pointerEvents="none">
           {done ? (

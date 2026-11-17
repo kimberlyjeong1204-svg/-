@@ -40,6 +40,12 @@ type ForestSpaceValue = {
   hideUi: () => void;
   /** 활동 중처럼 메뉴를 계속 보이게 하거나(false) 다시 자동으로 옅어지게(true) */
   setAutoHide: (on: boolean) => void;
+  /** 화면마다 메뉴가 숨기까지의 시간(ms). 숲 첫 화면은 조금 길게 */
+  setHideDelay: (ms: number) => void;
+  /** 숲 그림을 만졌을 때(창 기준 좌표). 숲 장면이 잎 흔들림·반딧불이로 답함 */
+  touchForest: (x: number, y: number) => void;
+  /** 숲 장면이 만짐을 받도록 등록 */
+  onForestTouch: (fn: ((x: number, y: number) => void) | null) => void;
 };
 
 export type BreatheAudio = { phase: SessionPhase; sound: SoundKey };
@@ -74,6 +80,13 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
   const [weather, setWeather] = usePersistentState<ForestWeather>(KEYS.forestWeather, 'clear', isOneOf(FOREST_WEATHERS));
   const uiOpacity = useRef(new Animated.Value(1)).current;
   const [autoHide, setAutoHide] = useState(true);
+  const [hideDelay, setHideDelayState] = useState<number>(HIDE_AFTER_MS);
+  const setHideDelay = useCallback((ms: number) => setHideDelayState(ms), []);
+  const touchListener = useRef<((x: number, y: number) => void) | null>(null);
+  const touchForest = useCallback((x: number, y: number) => touchListener.current?.(x, y), []);
+  const onForestTouch = useCallback((fn: ((x: number, y: number) => void) | null) => {
+    touchListener.current = fn;
+  }, []);
   const [uiHidden, setUiHidden] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -85,8 +98,8 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
     timer.current = setTimeout(() => {
       setUiHidden(true);
       Animated.timing(uiOpacity, { toValue: DIM_OPACITY, duration: FOREST_MOTION.uiOut, useNativeDriver: true }).start();
-    }, HIDE_AFTER_MS);
-  }, [autoHide, uiOpacity]);
+    }, hideDelay);
+  }, [autoHide, uiOpacity, hideDelay]);
 
   const hideUi = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -119,6 +132,9 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
         uiHidden,
         wakeUi,
         hideUi,
+        setHideDelay,
+        touchForest,
+        onForestTouch,
         setAutoHide,
       }}
     >

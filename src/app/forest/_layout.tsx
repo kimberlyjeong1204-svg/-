@@ -36,7 +36,7 @@ export default function ForestLayout() {
 }
 
 function ForestShell() {
-  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio } = useForestSpace();
+  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch } = useForestSpace();
   const raining = weather === 'rain';
   const pathname = usePathname();
   // 동굴 안: 숲 그림은 쉬고, 숲소리는 아주 작게(장작불 소리가 이어 받음), 비 소리는 멀어짐
@@ -161,7 +161,7 @@ function ForestShell() {
       }}
     >
       <StatusBar style="light" />
-      <ForestScene reduceMotion={reduceMotion} rain={raining} paused={inCave} />
+      <ForestScene reduceMotion={reduceMotion} rain={raining} paused={inCave} registerTouch={onForestTouch} caveGlow />
 
       {/* 숲 안의 화면들은 배경이 투명해야 뒤의 숲이 보입니다(기본 테마의 회색 배경을 끔) */}
       <View style={StyleSheet.absoluteFill}>
@@ -237,6 +237,8 @@ function ForestShell() {
           onDone={() => {
             setGateSeen(true);
             setGate('off');
+            // 숲에 도착하면 할 수 있는 것(숨 고르기·숲에 머물기·동굴 가기)을 잠깐 보여 줌
+            setTimeout(wakeUi, 400);
           }}
         />
       )}

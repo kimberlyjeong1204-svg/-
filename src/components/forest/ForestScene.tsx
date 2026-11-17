@@ -7,7 +7,7 @@ import { FOREST_IMAGE, coverView, forestImages } from './forestConfig';
  * 지금은 같은 숲 그림을 같은 구도로 보여 주기만 합니다.
  * 움직임(잎·별·반딧불이)은 웹앱(ForestScene.web.tsx)에 먼저 넣었고, iOS 앱에는 이후 단계에서 연결합니다.
  */
-export function ForestScene({ rain = false }: { reduceMotion: boolean; rain?: boolean; paused?: boolean }) {
+export function ForestScene({ rain = false }: { reduceMotion: boolean; rain?: boolean; paused?: boolean; registerTouch?: (fn: ((x: number, y: number) => void) | null) => void; caveGlow?: boolean }) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   // 비(Rain Mode): 빗줄기 움직임은 웹앱에 먼저 넣고, 앱에서는 젖은 느낌(어둡고 차갑게)만 8초에 걸쳐
   const wet = useRef(new Animated.Value(rain ? 1 : 0)).current;
