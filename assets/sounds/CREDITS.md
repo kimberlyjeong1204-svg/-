@@ -29,3 +29,8 @@
 - `long-rain.mp3`: 전달받은 MP3(128kbps)를 그대로 사용합니다.
 - `forest-crickets.m4a`, `forest-wind.m4a`: 원본 WAV(44.1kHz, 스테레오)를 같은 크기로 들리도록 음량만 맞춘 뒤(-24 LUFS, 귀뚜라미 +3.2dB, 바람 +16dB) AAC 128kbps로 변환했습니다. 소리 내용은 바꾸지 않았습니다.
 - 반복 재생 시 앞뒤의 무음·페이드 구간은 앱이 재생하지 않습니다. 원본 파일은 자르지 않았습니다. 설정값은 `src/audio/sounds.ts`에 있습니다.
+
+
+## 나무 풍경 효과음 (wood_tap_01~10)
+- 출처: 쉼표 나무 풍경 자산 v1 (프로젝트 소유자 제공, 패키지 제작 중 직접 합성한 원본 효과음, 외부 녹음·샘플 미사용)
+- 변환: 원본 44.1kHz WAV → 끝의 무음 제거, 모노 AAC 64kbps(m4a). 원본 안내는 design/windchime/README.md

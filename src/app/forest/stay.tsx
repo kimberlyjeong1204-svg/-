@@ -73,9 +73,12 @@ export default function ForestStay() {
 
       {mode === 'chime' && (
         <View style={styles.chimeWrap} pointerEvents="box-none">
-          <WindChime width={Math.min(width, 520)} soundOn={soundOn} reduceMotion={reduceMotion} />
-          {!soundOn && (
-            <Animated.Text style={[FOREST_TEXT.caption, { opacity: uiOpacity }]}>숲소리를 켜면 풍경 소리도 들려요.</Animated.Text>
+          <WindChime width={Math.min(width, 520)} soundOn={soundOn && audible} reduceMotion={reduceMotion} />
+          {/* 소리 상태를 정직하게: 꺼짐·재생 차단이면 소리가 나지 않는다고 알림 */}
+          {(!soundOn || blocked) && (
+            <Animated.Text style={[FOREST_TEXT.caption, { opacity: uiOpacity }]}>
+              {blocked ? 'Safari가 소리를 멈췄어요. 위쪽 버튼을 누르면 풍경 소리도 들려요.' : '숲소리를 켜면 풍경 소리도 들려요.'}
+            </Animated.Text>
           )}
         </View>
       )}
@@ -111,7 +114,7 @@ const styles = StyleSheet.create({
   dim: { backgroundColor: '#03080A' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   listenCard: { alignItems: 'center', gap: 14 },
-  chimeWrap: { position: 'absolute', top: 92, left: 0, right: 0, alignItems: 'center', gap: 6 },
+  chimeWrap: { position: 'absolute', top: 64, left: 0, right: 0, alignItems: 'center', gap: 6 },
   bottom: { alignItems: 'center', gap: 12, paddingBottom: 28, paddingHorizontal: 12 },
   row: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
 });
