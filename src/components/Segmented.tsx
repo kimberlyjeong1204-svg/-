@@ -58,7 +58,12 @@ export function ChipGroup<T extends string>({
   onChange,
   disabled,
   accessibilityLabel,
-}: Omit<Props<T>, 'trackColor' | 'textColor' | 'style'>) {
+  tone = 'light',
+}: Omit<Props<T>, 'trackColor' | 'textColor' | 'style'> & {
+  /** dark: 숲처럼 어두운 배경 위에서 쓰는 색 */
+  tone?: 'light' | 'dark';
+}) {
+  const dark = tone === 'dark';
   return (
     <View accessibilityRole="radiogroup" accessibilityLabel={accessibilityLabel} style={[styles.chips, disabled && styles.dim]}>
       {options.map((o) => {
@@ -72,9 +77,9 @@ export function ChipGroup<T extends string>({
             disabled={disabled}
             onPress={() => onChange(o.value)}
             hitSlop={{ top: 5, bottom: 5 }}
-            style={[styles.chip, on && styles.chipOn]}
+            style={[styles.chip, dark && styles.chipDark, on && styles.chipOn]}
           >
-            <Text style={[styles.chipLabel, on && styles.chipLabelOn]}>{o.label}</Text>
+            <Text style={[styles.chipLabel, dark && styles.chipLabelDark, on && styles.chipLabelOn]}>{o.label}</Text>
           </Pressable>
         );
       })}
@@ -99,6 +104,8 @@ const styles = StyleSheet.create({
     ...states.unselected,
   },
   chipOn: { ...states.chipSelected },
+  chipDark: { backgroundColor: 'rgba(237, 230, 211, 0.14)' },
+  chipLabelDark: { color: '#EDE6D3' },
   chipLabel: { ...type.small, ...states.unselectedText },
   chipLabelOn: { ...states.chipSelectedText },
 });

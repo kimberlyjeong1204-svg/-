@@ -1,5 +1,5 @@
 import { Asset } from 'expo-asset';
-import { AMBIENCES, isAmbience, type Ambience, type SoundKey } from './sounds';
+import { AMBIENCES, isAmbience, type Ambience, type SoundKey, type TrackKey } from './sounds';
 
 /**
  * 웹앱(PWA)용 환경음 재생기. 네이티브(ambiencePlayer.ts)와 같은 방식으로 동작합니다.
@@ -53,7 +53,7 @@ if (typeof window !== 'undefined') {
 const equalPowerIn = (n: number) => Float32Array.from({ length: n }, (_, i) => Math.sin(((i / (n - 1)) * Math.PI) / 2));
 const equalPowerOut = (n: number) => Float32Array.from({ length: n }, (_, i) => 1 - Math.cos(((i / (n - 1)) * Math.PI) / 2));
 
-class WebAmbiencePlayer {
+export class WebAmbiencePlayer {
   private track: Ambience | null = null;
   private voices: [Voice, Voice] | null = null;
   private active = 0;
@@ -61,9 +61,21 @@ class WebAmbiencePlayer {
   private crossfading = false;
   private monitor: ReturnType<typeof setInterval> | null = null;
   private generation = 0;
+  /** 사용자가 정한 음량(0~1). 숲 소리처럼 트랙마다 음량을 조절할 때 씁니다. 기본 1 */
+  private userVolume = 1;
 
-  get currentKey(): SoundKey {
+  get currentKey(): TrackKey | 'none' {
     return this.track?.key ?? 'none';
+  }
+
+  /** 사용자 음량을 부드럽게 바꿉니다 (0~1) */
+  setVolume(volume: number, rampMs = 300) {
+    this.userVolume = Math.max(0, Math.min(1, volume));
+    if (!this.voices || this.paused) return;
+    // 지금 들리는 소리만 같은 단계 그대로 새 음량으로 옮깁니다(크로스페이드 중이 아닐 때).
+    if (this.crossfading) return;
+    const v = this.voices[this.active];
+    if (v.level > 0) this.ramp(v, v.level, rampMs);
   }
 
   get isPlaying(): boolean {
@@ -75,7 +87,12 @@ class WebAmbiencePlayer {
       this.fadeOutAndStop(600);
       return;
     }
-    if (this.track?.key === key && this.voices) {
+    await this.playTrack(AMBIENCES[key], fadeInMs);
+  }
+
+  /** 정해진 트랙을 재생합니다 (빗소리·숲 소리 공용) */
+  async playTrack(track: Ambience, fadeInMs = 1500) {
+    if (this.track?.key === track.key && this.voices) {
       this.resume(fadeInMs);
       return;
     }
@@ -84,7 +101,6 @@ class WebAmbiencePlayer {
     this.paused = false;
     setAmbientSession();
 
-    const track = AMBIENCES[key];
     const uri = await resolveUri(track.source);
     if (gen !== this.generation || !uri) return;
 
@@ -189,7 +205,7 @@ class WebAmbiencePlayer {
   /** 볼륨을 부드럽게 바꿉니다. curve가 있으면 그 모양대로. */
   private ramp(v: Voice, to: number, ms: number, onDone?: () => void, curve?: (n: number) => Float32Array<ArrayBuffer>) {
     const track = this.track;
-    const gainTarget = to * (track?.gain ?? 1);
+    const gainTarget = to * (track?.gain ?? 1) * this.userVolume;
     if (v.doneTimer) clearTimeout(v.doneTimer);
     const c = ctx;
     if (v.gain && c) {
@@ -322,3 +338,6 @@ function seek(el: HTMLAudioElement, seconds: number) {
 }
 
 export const ambience = new WebAmbiencePlayer();
+
+/** 숲 소리처럼 여러 트랙을 동시에 쓸 때 새 재생기를 만듭니다 (네이티브와 같은 이름) */
+export const AmbiencePlayer = WebAmbiencePlayer;
