@@ -98,8 +98,8 @@ export default function Cave() {
           <Animated.View style={[styles.bottom, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
             {activity === 'stay' ? (
               <View style={styles.row}>
-                <ForestButton label="내 마음 버리기" onPress={() => setActivity('letgo')} />
-                <ForestButton label="조약돌 던지기" onPress={() => setActivity('pebble')} />
+                <ForestButton label="내 마음 버리기" size="sm" onPress={() => setActivity('letgo')} />
+                <ForestButton label="조약돌 던지기" size="sm" onPress={() => setActivity('pebble')} />
               </View>
             ) : (
               <ForestButton label="그만 던지기" variant="quiet" size="sm" onPress={() => setActivity('stay')} />

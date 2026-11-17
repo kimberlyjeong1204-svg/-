@@ -1,4 +1,4 @@
-import { Animated, StyleSheet } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import type { useBreathAnimation } from '../BreathCircle';
 
@@ -22,6 +22,20 @@ export function BreathRing({ values, size = 140 }: { values: Values; size?: numb
       accessibilityElementsHidden
       style={[styles.wrap, { width: size, height: size, opacity: Animated.multiply(values.visible, values.glow), transform: [{ scale: values.scale }] }]}
     >
+      {/* 숲과 구분되도록 고리 안팎을 아주 살짝 어둡게 (숲은 그대로 비쳐 보임) */}
+      <View style={[styles.layer, { width: size * 1.25, height: size * 1.25 }]}>
+        <Svg width={size * 1.25} height={size * 1.25} viewBox="0 0 100 100">
+          <Defs>
+            <RadialGradient id="ringBack" cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor="#040A0C" stopOpacity={0.34} />
+              <Stop offset="0.7" stopColor="#040A0C" stopOpacity={0.22} />
+              <Stop offset="1" stopColor="#040A0C" stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Circle cx={50} cy={50} r={50} fill="url(#ringBack)" />
+        </Svg>
+      </View>
+
       {/* 내쉬기 때 바깥으로 퍼지는 옅은 빛 */}
       <Animated.View style={[styles.layer, { width: halo, height: halo, opacity: Animated.multiply(values.haloOpacity, 0.6), transform: [{ scale: values.haloScale }] }]}>
         <Svg width={halo} height={halo} viewBox="0 0 100 100">
@@ -52,11 +66,11 @@ export function BreathRing({ values, size = 140 }: { values: Values; size?: numb
 
       {/* 고리 선: 기본 선 + 들이쉴수록 밝아지는 선(리듬이 안내 문구 없이도 보이게) */}
       <Svg width={size} height={size} viewBox="0 0 100 100" style={styles.layer}>
-        <Circle cx={50} cy={50} r={48.6} fill="none" stroke="#EDE6D3" strokeOpacity={0.5} strokeWidth={1.2} />
+        <Circle cx={50} cy={50} r={48.6} fill="none" stroke="#F2ECDC" strokeOpacity={0.72} strokeWidth={1.4} />
       </Svg>
       <Animated.View style={[styles.layer, { width: size, height: size, opacity: values.tone }]}>
         <Svg width={size} height={size} viewBox="0 0 100 100">
-          <Circle cx={50} cy={50} r={48.4} fill="none" stroke="#F4EEDD" strokeOpacity={0.85} strokeWidth={1.8} />
+          <Circle cx={50} cy={50} r={48.4} fill="none" stroke="#FFF8E6" strokeOpacity={0.95} strokeWidth={2.2} />
         </Svg>
       </Animated.View>
     </Animated.View>

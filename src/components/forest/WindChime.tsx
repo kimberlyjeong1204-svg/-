@@ -14,7 +14,13 @@ import { chimeHit, preloadChime } from '../../audio/chimeSound';
  * 그림 경계: 원본 패키지의 마스크에 남아 있던 사진 배경(갈색 면)을 지우고, 받침의 V자 끈을 같은 자리에 다시 그렸습니다
  * (design/windchime/README.md, 보정 내용은 docs/ROADMAP_2.0.md). 이미지 좌표는 아래 PIECES 값.
  */
-type Props = { width: number; soundOn: boolean; reduceMotion: boolean };
+type Props = {
+  width: number;
+  soundOn: boolean;
+  reduceMotion: boolean;
+  /** 풍경이 매달린 가로 위치(0~1). 숲 그림 오른쪽 위 나뭇가지 아래 */
+  anchorX?: number;
+};
 
 // 이미지 크기·끈 위치(자른 이미지 기준 px). ropeX: 맨 위 끈의 x, plankY: 판자가 시작하는 y, tilt: 원본이 기울어진 각(도)
 const CAP = { src: require('../../../assets/forest/windchime/top_cap.webp'), w: 330, h: 310, ropeX: 160.4 };
@@ -26,22 +32,25 @@ const PIECES = [
   { src: require('../../../assets/forest/windchime/wood_05.webp'), w: 70, h: 463, ropeX: 25.3, plankY: 96, tilt: 1.08 },
 ];
 const N = PIECES.length;
-const CAP_SCALE = 0.5;
-const PIECE_SCALE = 0.36;
-const SPACING = 33; // 조각 축 사이 간격(px)
-const PLANK_W = 25; // 화면에서 판자 폭(충돌 판정)
-const CAP_TOP = 0;
+// 숲속 나뭇가지에 매달린 작은 물건처럼: 화면 위에서 내려온 끈 끝에 작게
+const CAP_SCALE = 0.33;
+const PIECE_SCALE = 0.24;
+const SPACING = 22; // 조각 축 사이 간격(px)
+const PLANK_W = 17; // 화면에서 판자 폭(충돌 판정)
+/** 화면 위(나뭇가지)에서 받침까지 내려온 끈 길이 */
+const ROPE = 120;
+const CAP_TOP = ROPE;
 /** 받침 아랫면(조각이 매달리는 곳)의 높이: 받침 이미지 아래쪽 판 가운데 */
 const HANG_Y = CAP_TOP + CAP.h * CAP_SCALE - 26;
 
-export function WindChime({ width, soundOn, reduceMotion }: Props) {
+export function WindChime({ width, soundOn, reduceMotion, anchorX = 0.64 }: Props) {
   const angles = useRef(PIECES.map(() => new Animated.Value(0))).current;
   const sim = useRef({ th: new Array(N).fill(0) as number[], w: new Array(N).fill(0) as number[], lastHit: new Array(N).fill(0) as number[] }).current;
   const soundRef = useRef(soundOn);
   soundRef.current = soundOn;
   const reduceRef = useRef(reduceMotion);
   reduceRef.current = reduceMotion;
-  const cx = width / 2;
+  const cx = width * anchorX;
   const pivots = useMemo(() => PIECES.map((_, i) => cx + (i - (N - 1) / 2) * SPACING), [cx]);
   // 조각마다: 축에서 무게중심·충돌점까지 거리(px)
   const geo = useMemo(
@@ -123,7 +132,7 @@ export function WindChime({ width, soundOn, reduceMotion }: Props) {
         const r = Math.max(10, Math.min(geo[i].len, y - HANG_Y));
         const px = pivots[i] + r * Math.sin(sim.th[i]);
         const d = Math.abs(x - px);
-        if (d < 30 && y > HANG_Y && y < HANG_Y + geo[i].len + 20) sim.w[i] += (v * (1 - d / 30) * 70) / Math.max(40, r);
+        if (d < 26 && y > HANG_Y - 10 && y < HANG_Y + geo[i].len + 26) sim.w[i] += (v * (1 - d / 26) * 60) / Math.max(30, r);
       }
     };
     let sx = 0, sy = 0;
@@ -171,6 +180,8 @@ export function WindChime({ width, soundOn, reduceMotion }: Props) {
           </Animated.View>
         );
       })}
+      {/* 위쪽 나뭇가지에서 내려온 끈 */}
+      <View pointerEvents="none" style={{ position: 'absolute', left: cx - 0.6, top: 0, width: 1.2, height: CAP_TOP + 6, backgroundColor: 'rgba(40, 32, 26, 0.85)' }} />
       {/* 받침은 조각 위에 그려 끈 윗부분이 받침 아래로 들어가 보이게 */}
       <Image
         pointerEvents="none"

@@ -32,6 +32,8 @@ export default function ForestStay() {
   const { width } = useWindowDimensions();
   const reduceMotion = useReduceMotion();
   const [mode, setMode] = useState<Mode | null>(null);
+  // 체험을 고르면 선택지는 접고 작은 「체험 바꾸기」만 남김
+  const [menuOpen, setMenuOpen] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
@@ -49,6 +51,7 @@ export default function ForestStay() {
 
   const choose = (m: Mode) => {
     setMode(m);
+    setMenuOpen(false);
     wakeUi();
   };
 
@@ -98,10 +101,19 @@ export default function ForestStay() {
           {mode === 'listen' && audible && (
             <View style={styles.row}>
               <ForestButton label="숲소리 끄기" size="sm" onPress={() => setSoundOn(false)} />
-              <ForestButton label="돌아가기" size="sm" variant="quiet" onPress={() => setMode(null)} accessibilityLabel="숲소리 듣기 그만하기" />
+              <ForestButton label="돌아가기" size="sm" variant="quiet" onPress={() => { setMode(null); setMenuOpen(true); }} accessibilityLabel="숲소리 듣기 그만하기" />
             </View>
           )}
-          <ForestChoiceGroup label="숲에 머물기" showLabel={false} align="center" options={MODES} value={mode} onChange={choose} />
+          {menuOpen || mode == null ? (
+            <ForestChoiceGroup label="숲에 머물기" showLabel={false} align="center" options={MODES} value={mode} onChange={choose} />
+          ) : (
+            <ForestButton
+              label={`${MODES.find((m) => m.value === mode)?.label} · 바꾸기`}
+              size="sm"
+              onPress={() => setMenuOpen(true)}
+              accessibilityLabel="체험 바꾸기"
+            />
+          )}
         </Animated.View>
       </SafeAreaView>
     </View>
@@ -114,7 +126,7 @@ const styles = StyleSheet.create({
   dim: { backgroundColor: '#03080A' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   listenCard: { alignItems: 'center', gap: 14 },
-  chimeWrap: { position: 'absolute', top: 64, left: 0, right: 0, alignItems: 'center', gap: 6 },
+  chimeWrap: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', gap: 6 },
   bottom: { alignItems: 'center', gap: 12, paddingBottom: 28, paddingHorizontal: 12 },
   row: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
 });

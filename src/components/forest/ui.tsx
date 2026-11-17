@@ -11,6 +11,7 @@ import { HIT, colors, radius, shadow, states, type } from '../../theme';
  * - primary: 짙은 세이지. 화면에서 가장 중요한 한 가지(숲으로 들어가기, 숲소리 켜고 들어가기)
  * - glass:   반투명. 숲 위의 일반 버튼(활동, 설정, 재생)
  * - strong:  조금 더 진한 반투명. 시작 버튼처럼 눈에 띄어야 할 때
+ * - solid:   짙은 반투명 + 가는 테두리. 숲 첫 화면의 주요 활동(숨 고르기·숲에 머물기·동굴 가기)
  * - warn:    테두리가 있는 어두운 반투명. 소리가 막혔을 때처럼 눌러 달라는 상태
  * - quiet:   배경 없이 글자만. 보조 선택(조용히 들어가기, 바로 들어가기)
  * 크기: lg(56, 화면의 주 버튼) / md(48, 일반) / sm(40, 작은 버튼) / icon(40×40 원)
@@ -28,7 +29,7 @@ export const FOREST_MOTION = {
   appear: 700,
 } as const;
 
-type Variant = 'primary' | 'glass' | 'strong' | 'warn' | 'quiet';
+type Variant = 'primary' | 'glass' | 'strong' | 'solid' | 'warn' | 'quiet';
 type Size = 'lg' | 'md' | 'sm' | 'icon';
 
 type ButtonProps = {
@@ -165,7 +166,7 @@ export function ForestSheet({
 
 /** 숲 위 글자 (모든 화면 공통 크기·그림자) */
 export const FOREST_TEXT = StyleSheet.create({
-  cue: { ...type.body, fontSize: 16, color: FOREST_UI.ink, textAlign: 'center', ...FOREST_UI.textShadow },
+  cue: { ...type.bodyStrong, fontSize: 17, color: '#F6F1E3', textAlign: 'center', textShadowColor: 'rgba(0, 0, 0, 0.75)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
   closing: { ...type.closing, color: FOREST_UI.ink, textAlign: 'center', ...FOREST_UI.textShadow },
   caption: { ...type.caption, fontSize: 13, color: FOREST_UI.inkSoft, textAlign: 'center', ...FOREST_UI.textShadow },
   time: { ...type.small, fontSize: 15, color: FOREST_UI.inkSoft, textAlign: 'center', ...FOREST_UI.textShadow, fontVariant: ['tabular-nums'] },
@@ -183,6 +184,8 @@ const VARIANT: Record<Variant, ViewStyle> = {
   primary: { backgroundColor: colors.sageDeep, ...shadow.primary },
   glass: { backgroundColor: FOREST_UI.glass },
   strong: { backgroundColor: FOREST_UI.glassStrong },
+  // 어두운 숲 위에서 가장 잘 읽히는 주요 활동 버튼: 짙은 반투명 + 가는 테두리
+  solid: { backgroundColor: 'rgba(8, 20, 22, 0.62)', borderWidth: StyleSheet.hairlineWidth * 2, borderColor: 'rgba(237, 230, 211, 0.28)' },
   warn: { backgroundColor: 'rgba(10, 22, 24, 0.72)', borderWidth: 1, borderColor: 'rgba(237, 230, 211, 0.35)' },
   quiet: { backgroundColor: 'transparent' },
 };
@@ -195,7 +198,7 @@ const LABEL: Record<Size, object> = {
 
 const styles = StyleSheet.create({
   base: { borderRadius: radius.pill, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  label: { ...type.button, color: FOREST_UI.ink },
+  label: { ...type.button, color: FOREST_UI.ink, ...FOREST_UI.textShadow },
   labelPrimary: { color: colors.white },
   pressed: { opacity: 0.6 },
   pressedPrimary: { transform: [{ scale: 0.98 }], opacity: 0.92 },
