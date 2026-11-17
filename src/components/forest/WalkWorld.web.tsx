@@ -66,7 +66,7 @@ const LOOK: Record<Mood, MoodLook> = {
 };
 
 export function WalkWorld() {
-  const { uiOpacity, uiHidden, wakeUi, setHideDelay, soundOn, soundStatus, setLeaveGuard, setAutoHide } = useForestSpace();
+  const { uiOpacity, uiHidden, wakeUi, setHideDelay, soundOn, soundStatus, setLeaveGuard, setAutoHide, setWalkMood } = useForestSpace();
   const { width } = useWindowDimensions();
   const reduceMotion = useReduceMotion();
   const audible = soundOn && soundStatus === 'on';
@@ -149,6 +149,7 @@ export function WalkWorld() {
           onMoveStart: () => setMoved(true),
           isSitting: () => sittingRef.current,
           isAudible: () => audibleRef.current,
+          getMood: () => moodRef.current,
           reduce: () => reduceRef.current,
           onLost: () => setFailed(true),
           mood: moodRef.current,
@@ -171,7 +172,9 @@ export function WalkWorld() {
 
   useEffect(() => {
     api.current?.setMood(mood);
-  }, [mood, ready]);
+    setWalkMood(mood);
+  }, [mood, ready, setWalkMood]);
+  useEffect(() => () => setWalkMood(null), [setWalkMood]);
 
   const sit = (on: boolean) => {
     setSitting(on);
@@ -248,6 +251,7 @@ type Hooks = {
   onMoveStart: () => void;
   isSitting: () => boolean;
   isAudible: () => boolean;
+  getMood: () => Mood;
   reduce: () => boolean;
   /** 3D 화면이 끊김(WebGL context lost) */
   onLost: () => void;
@@ -726,6 +730,7 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
   let raf = 0;
   let mixTimer = 0;
   let lastMix: WalkMix | null = null;
+  let lastDawn: boolean | null = null;
   const resize = () => {
     const r = host.getBoundingClientRect();
     renderer.setSize(Math.max(1, r.width), Math.max(1, r.height), false);
@@ -839,17 +844,23 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
       if (mixTimer > 0.25) {
         mixTimer = 0;
         const dW = Math.hypot(p.x - wfX, p.z - wfZ), dT = Math.hypot(p.x - btX, p.z - btZ);
+        const dawn = hooks.getMood() === 'dawn';
         const near = Math.max(0, Math.min(1, 1 - (dW - 5) / 24));
         const mix: WalkMix = {
           waterNear: near,
           waterFar: Math.max(0, Math.min(1, 1 - (dW - 10) / 90)) * (1 - near * 0.6),
           leaves: 0.35 + 0.65 * Math.max(0, Math.min(1, 1 - (dT - 4) / 30)),
-          birdsNear: Math.max(0, Math.min(1, 1 - (dT - 4) / 26)),
-          birdsFar: 0.55,
+          // 새벽: 새들이 깨어 가까이·멀리서 또렷하게 / 밤: 새는 거의 없고 잎소리도 조금 작게(귀뚜라미는 숲 기본 소리가 맡음)
+          birdsNear: Math.max(0, Math.min(1, 1 - (dT - 4) / 26)) * (dawn ? 1 : 0.08),
+          birdsFar: dawn ? 0.95 : 0.06,
         };
-        if (!lastMix || (Object.keys(mix) as (keyof WalkMix)[]).some((k) => Math.abs(mix[k] - lastMix![k]) > 0.02)) {
-          setWalkMix(mix, 400);
+        if (!dawn) mix.leaves *= 0.8;
+        const moodChanged = lastDawn !== dawn;
+        if (!lastMix || moodChanged || (Object.keys(mix) as (keyof WalkMix)[]).some((k) => Math.abs(mix[k] - lastMix![k]) > 0.02)) {
+          // 밤↔새벽을 바꾸면 빛처럼 천천히 소리도 바뀜
+          setWalkMix(mix, moodChanged && lastDawn != null ? 2500 : 400);
           lastMix = mix;
+          lastDawn = dawn;
         }
       }
     } else {

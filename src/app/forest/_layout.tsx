@@ -40,7 +40,7 @@ export default function ForestLayout() {
 }
 
 function ForestShell() {
-  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch, reportSound, setUiSuppressed, runLeaveGuard } = useForestSpace();
+  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch, reportSound, setUiSuppressed, runLeaveGuard, walkMood } = useForestSpace();
   const raining = weather === 'rain';
   const pathname = usePathname();
   // 동굴 안: 숲 그림은 쉬고, 숲소리는 아주 작게(장작불 소리가 이어 받음), 비 소리는 멀어짐
@@ -54,6 +54,16 @@ function ForestShell() {
     const t = setTimeout(() => setCaveRamp(false), 3500);
     return () => clearTimeout(t);
   }, [inCave]);
+  // 밤↔새벽을 바꾸면 귀뚜라미 소리도 천천히(3초) 바뀜
+  const [moodRamp, setMoodRamp] = useState(false);
+  const prevMood = useRef(walkMood);
+  useEffect(() => {
+    if (prevMood.current === walkMood) return;
+    prevMood.current = walkMood;
+    setMoodRamp(true);
+    const t = setTimeout(() => setMoodRamp(false), 3500);
+    return () => clearTimeout(t);
+  }, [walkMood]);
   const reduceMotion = useReduceMotion();
   const [settings, setSettings] = useForestSoundSettings();
   // 동굴 환경음: 동굴 안에서 실제로 조절되는 소리는 장작불(숲소리는 동굴에서 아주 작게만 들림)
@@ -64,11 +74,13 @@ function ForestShell() {
   // 비가 오면 귀뚜라미·풀벌레를 절반쯤 낮춤(바람은 그대로). 비가 그치면 원래대로
   const playSettings = useMemo(
     () => {
-      const bugs = settings.volume.forestBugs * (raining ? RAIN_BUGS_DUCK : 1) * (inCave ? CAVE_DUCK : 1);
+      // 새벽 숲길: 밤새 울던 귀뚜라미·풀벌레가 잦아듦(새소리는 거닐기 장소 소리가 맡음)
+      const dawnWalk = walkMood === 'dawn';
+      const bugs = settings.volume.forestBugs * (raining ? RAIN_BUGS_DUCK : 1) * (inCave ? CAVE_DUCK : 1) * (dawnWalk ? DAWN_BUGS_DUCK : 1);
       const wind = settings.volume.forestWind * (inCave ? CAVE_DUCK : 1);
-      return raining || inCave ? { ...settings, volume: { ...settings.volume, forestBugs: bugs, forestWind: wind } } : settings;
+      return raining || inCave || dawnWalk ? { ...settings, volume: { ...settings.volume, forestBugs: bugs, forestWind: wind } } : settings;
     },
-    [settings, raining, inCave],
+    [settings, raining, inCave, walkMood],
   );
 
   // 숲 입구: 처음 방문(또는 설정의 「숲 입구 다시 보기」) 때만. 다시 올 때는 숲으로 바로
@@ -96,7 +108,7 @@ function ForestShell() {
   }, [atGate, gate, hideUi, setUiSuppressed]);
 
   // 문으로 들어올 때는 숲소리가 문이 열리는 동안 더 천천히(5초) 다가옴
-  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, playSettings, atGate ? 5000 : 2500, forestHold, caveRamp ? 3000 : 300);
+  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, playSettings, atGate ? 5000 : 2500, forestHold, caveRamp || moodRamp ? 3000 : 300);
   useForestRain(weather, soundOn && !inCave, breatheAudio, yieldedToMusic);
   useEffect(() => {
     reportSound(status, retry);
@@ -300,6 +312,7 @@ function ForestShell() {
 const RAIN_BUGS_DUCK = 0.5;
 /** 동굴 안에서 숲소리 음량 비율 (멀리서 아주 작게) */
 const CAVE_DUCK = 0.12;
+const DAWN_BUGS_DUCK = 0.25;
 
 type CaveFireSetting = { volume: number; muted: boolean };
 const isCaveFire = (v: unknown): v is CaveFireSetting =>

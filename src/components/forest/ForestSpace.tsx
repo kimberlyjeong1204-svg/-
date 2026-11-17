@@ -26,6 +26,9 @@ type ForestSpaceValue = {
   soundPrefReady: boolean;
   /** 숨 고르기에서 「내 음악과 함께」를 고른 동안 숲소리를 잠시 쉬게 함 (사용자의 켜짐 선택은 그대로) */
   forestHold: boolean;
+  /** 숲 거닐기의 걷는 시간(밤·새벽). 숲 기본 소리(귀뚜라미)를 맞춤. 거닐기 밖이면 null */
+  walkMood: 'night' | 'dawn' | null;
+  setWalkMood: (m: 'night' | 'dawn' | null) => void;
   setForestHold: (hold: boolean) => void;
   /** 숲 숨 고르기의 소리 상태: 숲의 비 소리 채널이 Rain Mode와 함께 맞춰 재생 */
   breatheAudio: BreatheAudio;
@@ -88,6 +91,7 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
   );
   const needsSoundPrompt = prefReady && !pref.prompted;
   const [forestHold, setForestHold] = useState(false);
+  const [walkMood, setWalkMood] = useState<'night' | 'dawn' | null>(null);
   const [breatheAudio, setBreatheAudio] = useState<BreatheAudio>(NO_BREATHE_AUDIO);
   const [weather, setWeather] = usePersistentState<ForestWeather>(KEYS.forestWeather, 'clear', isOneOf(FOREST_WEATHERS));
   const uiOpacity = useRef(new Animated.Value(1)).current;
@@ -159,6 +163,8 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
         soundPrefReady: prefReady,
         forestHold,
         setForestHold,
+        walkMood,
+        setWalkMood,
         breatheAudio,
         setBreatheAudio,
         weather,
