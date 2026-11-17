@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Image, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForestSpace } from './ForestSpace';
 import { FOREST_TEXT, ForestButton } from './ui';
 import { WindChime } from './WindChime';
+import { forestImages } from './forestConfig';
 import { useReduceMotion } from '../BreathCircle';
 import { goHome } from '../../lib/navigation';
 import { setWalkMix, startSteps, stopSteps, stopWalk, type WalkMix } from '../../audio/walkSound';
@@ -116,6 +117,11 @@ export function WalkWorld() {
     if (!host) return;
     let alive = true;
     let cleanup = () => {};
+    // WebGL을 쓸 수 없는 기기(데스크톱 Chrome 하드웨어 가속 꺼짐 등)는 3D를 불러오지 않고 바로 숲 그림으로
+    if (!webglAvailable()) {
+      setFailed(true);
+      return;
+    }
     import('three')
       .then((THREE) => {
         if (!alive) return;
@@ -128,12 +134,15 @@ export function WalkWorld() {
           isSitting: () => sittingRef.current,
           isAudible: () => audibleRef.current,
           reduce: () => reduceRef.current,
+          onLost: () => setFailed(true),
         });
         api.current = a;
         cleanup = a.dispose;
         setReady(true);
       })
-      .catch(() => setFailed(true));
+      .catch(() => {
+        if (alive) setFailed(true);
+      });
     return () => {
       alive = false;
       cleanup();
@@ -153,6 +162,18 @@ export function WalkWorld() {
     <View style={styles.root}>
       <View ref={boxRef} style={StyleSheet.absoluteFill} />
       {!ready && !failed && <View style={[StyleSheet.absoluteFill, styles.loading]} pointerEvents="none" />}
+      {failed && (
+        // 3D를 열 수 없으면: 걷는 법·조작은 숨기고 숲 그림과 돌아가는 버튼만
+        <View style={StyleSheet.absoluteFill}>
+          <Image source={forestImages.background} style={styles.failImage} resizeMode="cover" accessibilityIgnoresInvertColors />
+          <SafeAreaView style={styles.failWrap} edges={['bottom']}>
+            <View style={styles.failCard}>
+              <Text style={[FOREST_TEXT.cue, styles.sheetText]}>이 기기에서는 3D 숲길을 열 수 없어요.</Text>
+              <ForestButton label="숲으로 돌아가기" variant="solid" size="sm" onPress={() => router.dismissTo('/forest')} />
+            </View>
+          </SafeAreaView>
+        </View>
+      )}
 
       {arrived === 'tree' && (
         <View style={styles.chime} pointerEvents="box-none">
@@ -160,6 +181,7 @@ export function WalkWorld() {
         </View>
       )}
 
+      {!failed && (
       <SafeAreaView style={styles.safe} edges={['bottom']} pointerEvents="box-none">
         <View style={styles.spacer} pointerEvents="none" />
         <Animated.View style={[styles.bottom, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
@@ -180,9 +202,9 @@ export function WalkWorld() {
             (sitting ? <ForestButton label="일어나기" variant="solid" onPress={() => sit(false)} /> : <ForestButton label="잠시 앉기" variant="solid" onPress={() => sit(true)} />)}
           {!moved && !arrived && <Text style={FOREST_TEXT.caption}>화면을 누른 채 위로 밀면 걸어요 · 좌우로 밀면 방향을 바꿔요</Text>}
           {arrived !== 'end' && arrived !== 'start' && <ForestButton label="나가기" variant="quiet" size="sm" onPress={() => setExitOpen(true)} />}
-          {failed && <Text style={FOREST_TEXT.caption}>이 기기에서는 3D 숲길을 열 수 없어요.</Text>}
         </Animated.View>
       </SafeAreaView>
+      )}
 
       {exitOpen && (
         <View style={styles.sheetWrap} pointerEvents="box-none">
@@ -204,7 +226,18 @@ type Hooks = {
   isSitting: () => boolean;
   isAudible: () => boolean;
   reduce: () => boolean;
+  /** 3D 화면이 끊김(WebGL context lost) */
+  onLost: () => void;
 };
+
+function webglAvailable() {
+  try {
+    const c = document.createElement('canvas');
+    return !!(c.getContext('webgl2') || c.getContext('webgl'));
+  } catch {
+    return false;
+  }
+}
 
 // ─── 3D 세계 ─────────────────────────────────────────────
 
@@ -235,6 +268,10 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.25;
   const canvas = renderer.domElement;
+  canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    hooks.onLost();
+  });
   canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block';
   canvas.setAttribute('aria-label', '3D 숲길. 화면을 누른 채 위로 밀면 걸어요');
   host.appendChild(canvas);
@@ -814,6 +851,9 @@ const styles = StyleSheet.create({
   spacer: { flex: 1 },
   bottom: { alignItems: 'center', gap: 10, paddingBottom: 28, paddingHorizontal: 16 },
   chime: { position: 'absolute', top: 0, left: 0, right: 0 },
+  failImage: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
+  failWrap: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 24, paddingBottom: 40 },
+  failCard: { width: '100%', maxWidth: 320, padding: 20, gap: 12, borderRadius: 20, backgroundColor: 'rgba(14, 18, 20, 0.82)', alignItems: 'stretch' },
   row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
   sheetWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   sheet: { width: '100%', maxWidth: 320, padding: 22, gap: 10, borderRadius: 20, backgroundColor: 'rgba(14, 18, 20, 0.9)', alignItems: 'stretch' },
