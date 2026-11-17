@@ -27,6 +27,13 @@ test('초기값: 2시간 간격 09–18시 → 9·11·13·15·17시, 평일 5일
   assert.equal(plan.alarms.length, 25);
 });
 
+test('휴식 알림 시간대는 분 단위(5분)도 그대로 쓴다', () => {
+  assert.deepEqual(restTimesOfDay({ startMin: 9 * 60 + 35, endMin: 12 * 60 + 35, intervalHours: 1 }).map(formatHM), ['09:35', '10:35', '11:35', '12:35']);
+  const plan = planRest({ ...DEFAULT_REST, enabled: true, startMin: 8 * 60 + 15, endMin: 10 * 60 + 15 });
+  assert.equal(plan.problem, null);
+  assert.ok(plan.alarms.every((a) => a.minute === 15));
+});
+
 test('한 시각에는 알림이 하나뿐이고 종류가 돌아가며 나온다', () => {
   const plan = planRest({ ...DEFAULT_REST, enabled: true });
   const keys = plan.alarms.map((a) => `${a.weekday}-${a.hour}:${a.minute}`);
