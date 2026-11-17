@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { ForestScene } from '../../components/forest/ForestScene';
 import { ForestSpaceProvider, useForestSpace } from '../../components/forest/ForestSpace';
+import { StayTimerProvider } from '../../components/forest/StayTimer';
 import { ForestSoundButton } from '../../components/forest/ForestSoundButton';
 import { SoundPrompt } from '../../components/forest/SoundPrompt';
 import { FOREST_TEXT, ForestButton } from '../../components/forest/ui';
@@ -31,7 +32,9 @@ import { HIT, radius, type } from '../../theme';
 export default function ForestLayout() {
   return (
     <ForestSpaceProvider>
-      <ForestShell />
+      <StayTimerProvider>
+        <ForestShell />
+      </StayTimerProvider>
     </ForestSpaceProvider>
   );
 }

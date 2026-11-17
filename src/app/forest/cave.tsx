@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CaveScene } from '../../components/cave/CaveScene';
 import { FireCloseup } from '../../components/cave/FireCloseup';
+import { StayTimerMenu } from '../../components/forest/StayTimer';
 import { LetGoPaper } from '../../components/cave/LetGoPaper';
 import { PebbleThrow } from '../../components/cave/PebbleThrow';
 import { fireOnScreen } from '../../components/cave/caveConfig';
@@ -180,12 +181,14 @@ export default function Cave() {
               <View style={styles.row}>
                 <ForestButton label="장작 더 넣기" size="sm" variant="solid" onPress={addLog} disabled={logBusy} />
                 <ForestButton label="동굴 전체 보기" size="sm" variant="solid" onPress={closeClose} />
+                <StayTimerMenu />
               </View>
             ) : activity === 'stay' ? (
               <View style={styles.row}>
                 <ForestButton label="불 가까이 보기" size="sm" variant="solid" onPress={openClose} />
                 <ForestButton label="마음에 걸린 것 내려놓기" size="sm" variant="solid" onPress={() => setActivity('letgo')} />
                 <ForestButton label="조약돌 던지기" size="sm" variant="solid" onPress={() => setActivity('pebble')} />
+                <StayTimerMenu />
                 <ForestButton label="나가기" size="sm" variant="quiet" onPress={() => setExitOpen(true)} />
               </View>
             ) : (

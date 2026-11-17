@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForestSpace } from '../../components/forest/ForestSpace';
 import { FOREST_UI } from '../../components/forest/forestUi';
 import { FOREST_TEXT, ForestButton } from '../../components/forest/ui';
+import { StayTimerMenu } from '../../components/forest/StayTimer';
 import { CAVE_SPOT, forestToScreen } from '../../components/forest/forestConfig';
 import { leafRustle } from '../../audio/forestTouchSound';
 import { radius } from '../../theme';
@@ -85,6 +86,7 @@ export default function ForestHome() {
           <ForestButton label="숨 고르기" size="md" variant="solid" onPress={() => router.push('/forest/breathe?start=1')} accessibilityHint="누르면 바로 숨 고르기를 시작해요" />
           <ForestButton label="숲 거닐기" size="md" variant="solid" onPress={() => router.push('/forest/stay')} />
           <ForestButton label="동굴 가기" size="md" variant="solid" onPress={enterCave} accessibilityLabel="동굴 가기" />
+          <StayTimerMenu />
         </Animated.View>
         {/* 메뉴가 숨었을 때만 보이는 작은 버튼 */}
         {uiHidden && (
