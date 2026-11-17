@@ -19,7 +19,7 @@ export type ForestSoundStatus = 'off' | 'starting' | 'on' | 'blocked' | 'held';
 /**
  * @param hold true면 소리를 켠 상태는 유지한 채 잠시 쉼 (숨 고르기 「내 음악과 함께」). 상태는 'held'
  */
-export function useForestAmbience(soundOn: boolean, settings: ForestSoundSettings, fadeInMs = 2500, hold = false) {
+export function useForestAmbience(soundOn: boolean, settings: ForestSoundSettings, fadeInMs = 2500, hold = false, volumeRampMs = 300) {
   const [appActive, setAppActive] = useState(AppState.currentState !== 'background');
   const [yielded, setYielded] = useState(false);
 
@@ -57,11 +57,11 @@ export function useForestAmbience(soundOn: boolean, settings: ForestSoundSetting
         p.setVolume(volume, 1);
         void p.playTrack(FOREST_TRACKS[key], fadeInMs);
       } else {
-        p.setVolume(volume, 300);
+        p.setVolume(volume, volumeRampMs);
         if (!p.isPlaying) p.resume(Math.min(fadeInMs, 1500));
       }
     }
-  }, [soundOn, settings, appActive, yielded, fadeInMs, hold]);
+  }, [soundOn, settings, appActive, yielded, fadeInMs, hold, volumeRampMs]);
 
   useEffect(
     () => () => {

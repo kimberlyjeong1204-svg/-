@@ -148,6 +148,16 @@ export function RainIcon({ size = 22, color = colors.text }: P) {
   );
 }
 
+/** 장작불: 동굴 */
+export function FlameIcon({ size = 22, color = colors.text }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1.2-3.6 2.4-4.6.2 1.6 1 2.6 2 3 0-3 .6-5.6.6-8.4z" />
+      <Path d="M5 21h14" />
+    </Svg>
+  );
+}
+
 export function StretchIcon({ size = 24, color = colors.text }: P) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">

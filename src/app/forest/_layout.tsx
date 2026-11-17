@@ -38,12 +38,28 @@ export default function ForestLayout() {
 function ForestShell() {
   const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio } = useForestSpace();
   const raining = weather === 'rain';
+  const pathname = usePathname();
+  // 동굴 안: 숲 그림은 쉬고, 숲소리는 아주 작게(장작불 소리가 이어 받음), 비 소리는 멀어짐
+  const inCave = pathname === '/forest/cave';
+  const [caveRamp, setCaveRamp] = useState(false);
+  const prevCave = useRef(inCave);
+  useEffect(() => {
+    if (prevCave.current === inCave) return;
+    prevCave.current = inCave;
+    setCaveRamp(true);
+    const t = setTimeout(() => setCaveRamp(false), 3500);
+    return () => clearTimeout(t);
+  }, [inCave]);
   const reduceMotion = useReduceMotion();
   const [settings, setSettings] = useForestSoundSettings();
   // 비가 오면 귀뚜라미·풀벌레를 절반쯤 낮춤(바람은 그대로). 비가 그치면 원래대로
   const playSettings = useMemo(
-    () => (raining ? { ...settings, volume: { ...settings.volume, forestBugs: settings.volume.forestBugs * RAIN_BUGS_DUCK } } : settings),
-    [settings, raining],
+    () => {
+      const bugs = settings.volume.forestBugs * (raining ? RAIN_BUGS_DUCK : 1) * (inCave ? CAVE_DUCK : 1);
+      const wind = settings.volume.forestWind * (inCave ? CAVE_DUCK : 1);
+      return raining || inCave ? { ...settings, volume: { ...settings.volume, forestBugs: bugs, forestWind: wind } } : settings;
+    },
+    [settings, raining, inCave],
   );
 
   // 숲 입구: 처음 방문(또는 설정의 「숲 입구 다시 보기」) 때만. 다시 올 때는 숲으로 바로
@@ -70,14 +86,13 @@ function ForestShell() {
   }, [atGate, hideUi]);
 
   // 문으로 들어올 때는 숲소리가 문이 열리는 동안 더 천천히(5초) 다가옴
-  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, playSettings, atGate ? 5000 : 2500, forestHold);
-  useForestRain(weather, soundOn, breatheAudio, yieldedToMusic);
+  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, playSettings, atGate ? 5000 : 2500, forestHold, caveRamp ? 3000 : 300);
+  useForestRain(weather, soundOn && !inCave, breatheAudio, yieldedToMusic);
   // 「켜짐」은 실제로 소리가 나는 것이 확인됐을 때만 보여 줍니다.
   const audible = status === 'on';
   const blocked = status === 'blocked';
   // 「내 음악과 함께」로 잠시 쉬는 중: 사용자가 끈 것이 아니므로 「켜기」 버튼을 고정하지 않음
   const held = status === 'held';
-  const pathname = usePathname();
   const atForestHome = pathname === '/forest';
 
   // 위쪽 버튼으로 소리를 처음 켤 때 한 번만: 무음 모드 안내 (웹에서는 무음 스위치 상태를 알 수 없음)
@@ -146,7 +161,7 @@ function ForestShell() {
       }}
     >
       <StatusBar style="light" />
-      <ForestScene reduceMotion={reduceMotion} rain={raining} />
+      <ForestScene reduceMotion={reduceMotion} rain={raining} paused={inCave} />
 
       {/* 숲 안의 화면들은 배경이 투명해야 뒤의 숲이 보입니다(기본 테마의 회색 배경을 끔) */}
       <View style={StyleSheet.absoluteFill}>
@@ -167,7 +182,7 @@ function ForestShell() {
             <Pressable
               onPress={onBack}
               accessibilityRole="button"
-              accessibilityLabel={atForestHome ? '숲에서 나가기' : '숲으로 돌아가기'}
+              accessibilityLabel={atForestHome ? '숲에서 나가기' : inCave ? '동굴에서 나가기' : '숲으로 돌아가기'}
               style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
             >
               <BackIcon color={FOREST_UI.ink} />
@@ -175,6 +190,7 @@ function ForestShell() {
           </Animated.View>
           <View style={styles.right} pointerEvents="box-none">
             {/* Rain Mode: 숲의 날씨. 숨 고르기·숲에 머물기 중에도 그대로, 기기에 저장 */}
+            {!inCave && (
             <Animated.View style={{ opacity: uiOpacity }} pointerEvents={uiHidden ? 'none' : 'box-none'}>
               <ForestButton
                 size="icon"
@@ -186,6 +202,7 @@ function ForestShell() {
                 icon={<RainIcon size={20} color={FOREST_UI.ink} />}
               />
             </Animated.View>
+            )}
             <Animated.View style={{ opacity: soundPinned ? 1 : uiOpacity }} pointerEvents={!soundPinned && uiHidden ? 'none' : 'box-none'}>
               <ForestButton
                 onPress={onSoundPress}
@@ -248,6 +265,8 @@ function ForestShell() {
 
 /** 비가 올 때 귀뚜라미·풀벌레 음량 비율 */
 const RAIN_BUGS_DUCK = 0.5;
+/** 동굴 안에서 숲소리 음량 비율 (멀리서 아주 작게) */
+const CAVE_DUCK = 0.12;
 
 const FOREST_NAV_THEME = {
   ...DefaultTheme,

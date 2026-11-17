@@ -37,9 +37,12 @@ function backToForest() {
   router.dismissTo('/forest');
 }
 
+const isDuration = (v: unknown): v is number => v === 30 || v === 60 || v === 180;
+
 export default function ForestBreathe() {
   const { uiOpacity, uiHidden, setAutoHide, wakeUi, setForestHold, setBreatheAudio } = useForestSpace();
-  const [durationSec, setDurationSec] = useState(60);
+  // 마지막으로 고른 시간을 기억 (다시 와도 그대로)
+  const [durationSec, setDurationSec] = usePersistentState<number>(KEYS.breathDuration, 60, isDuration);
   const [rhythmKey, setRhythmKey] = usePersistentState<RhythmKey>(KEYS.breathRhythm, 'base', isOneOf(['base', 'slow'] as const));
   const [sound, setSound] = useSoundChoice();
   const rhythm = RHYTHMS[rhythmKey];
@@ -66,6 +69,13 @@ export default function ForestBreathe() {
   );
   const session = useSession(durationSec, onFrame);
   const { phase } = session;
+  // 저장된 시간을 읽어 오면(시작 전) 타이머에 반영
+  const resetRef = useRef(session.reset);
+  resetRef.current = session.reset;
+  useEffect(() => {
+    if (phase === 'idle') resetRef.current(durationSec);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [durationSec]);
   const active = phase === 'running' || phase === 'paused';
   // 빗소리는 숲의 비 소리 채널이 Rain Mode와 함께 맞춰 재생 (비가 두 번 나지 않음)
   useEffect(() => {

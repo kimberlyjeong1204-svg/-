@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForestSpace } from '../../components/forest/ForestSpace';
 import { FOREST_UI } from '../../components/forest/forestUi';
-import { BreathIcon, CupIcon } from '../../components/icons';
+import { BreathIcon, CupIcon, FlameIcon } from '../../components/icons';
 
 /**
  * 나의 숲 (숲 공간의 기본 화면)
@@ -18,6 +18,7 @@ export default function ForestHome() {
       <Animated.View style={[styles.activities, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
         <ForestButton label="숨 고르기" icon={<BreathIcon size={20} color={FOREST_UI.ink} />} onPress={() => router.push('/forest/breathe')} />
         <ForestButton label="숲에 머물기" icon={<CupIcon size={20} color={FOREST_UI.ink} />} onPress={() => router.push('/forest/stay')} />
+        <ForestButton label="동굴" icon={<FlameIcon size={20} color={FOREST_UI.ink} />} onPress={() => router.push('/forest/cave')} accessibilityLabel="동굴로 가기" />
       </Animated.View>
     </SafeAreaView>
   );
@@ -26,5 +27,5 @@ export default function ForestHome() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
   spacer: { flex: 1 },
-  activities: { flexDirection: 'row', justifyContent: 'center', gap: 12, paddingBottom: 40, paddingHorizontal: 20 },
+  activities: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, paddingBottom: 40, paddingHorizontal: 12 },
 });

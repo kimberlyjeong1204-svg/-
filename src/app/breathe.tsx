@@ -24,8 +24,11 @@ const RHYTHM_OPTIONS = (Object.keys(RHYTHMS) as RhythmKey[]).map((k) => ({ value
 
 type Cue = { key: string; text: string };
 
+const isDuration = (v: unknown): v is number => v === 30 || v === 60 || v === 180;
+
 export default function Breathe() {
-  const [durationSec, setDurationSec] = useState(60);
+  // 마지막으로 고른 시간을 기억 (다시 와도 그대로)
+  const [durationSec, setDurationSec] = usePersistentState<number>(KEYS.breathDuration, 60, isDuration);
   const [rhythmKey, setRhythmKey] = usePersistentState<RhythmKey>(KEYS.breathRhythm, 'base', isOneOf(['base', 'slow'] as const));
   const [sound, setSound] = useSoundChoice();
   const rhythm = RHYTHMS[rhythmKey];
@@ -53,6 +56,13 @@ export default function Breathe() {
 
   const session = useSession(durationSec, onFrame);
   const { phase } = session;
+  // 저장된 시간을 읽어 오면(시작 전) 타이머에 반영
+  const resetRef = useRef(session.reset);
+  resetRef.current = session.reset;
+  useEffect(() => {
+    if (phase === 'idle') resetRef.current(durationSec);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [durationSec]);
   const { yieldedToMusic } = useAmbience(phase, sound);
 
   // 쉬는 중(진행·일시정지) 리듬 변경: 바로 새 들숨, 전체 남은 시간은 그대로

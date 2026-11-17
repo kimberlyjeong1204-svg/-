@@ -14,7 +14,7 @@ import { FOREST, FOREST_IMAGE, coverView, forest, forestImages } from './forestC
  *   동작 줄이기이면 빗줄기 없이 젖은 느낌과 안개만.
  */
 
-type Props = { reduceMotion: boolean; rain?: boolean };
+type Props = { reduceMotion: boolean; rain?: boolean; paused?: boolean };
 
 const VS = 'attribute vec2 p; varying vec2 v; void main(){ v = vec2(p.x*0.5+0.5, 0.5-p.y*0.5); gl_Position = vec4(p,0.,1.); }';
 const FS = `precision mediump float; varying vec2 v;
@@ -71,9 +71,12 @@ function loadImage(src: string) {
 type Drop = { x: number; y: number; z: number; land: number; len: number };
 type Splash = { x: number; y: number; age: number; size: number; leaf: boolean };
 
-export function ForestScene({ reduceMotion, rain = false }: Props) {
+export function ForestScene({ reduceMotion, rain = false, paused = false }: Props) {
   const rainRef = useRef(rain);
   rainRef.current = rain;
+  // 동굴처럼 숲이 가려져 있을 때는 그리지 않음(배터리 절약)
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
   const glRef = useRef<HTMLCanvasElement | null>(null);
   const fxRef = useRef<HTMLCanvasElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -257,6 +260,7 @@ export function ForestScene({ reduceMotion, rain = false }: Props) {
       const now = performance.now() / 1000;
       const dt = Math.min(0.1, now - last);
       last = now;
+      if (pausedRef.current) return;
       const reduce = reduceRef.current;
       const t = reduce ? frozenT : now - t0;
       if (!reduce) frozenT = t;
