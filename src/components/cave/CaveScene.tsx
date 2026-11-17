@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import Svg, { Defs, Ellipse, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { CAVE_IMAGE, FIRE, caveCover } from './caveConfig';
+import { CAVE_IMAGE, CAVE_PAN, FIRE, caveCover } from './caveConfig';
 
 /**
  * 동굴 화면 (iOS 앱) — 바위 그림 + 일렁이는 불빛과 단순한 불꽃.
@@ -29,12 +29,24 @@ export function CaveScene({ reduceMotion, flare = 0 }: { reduceMotion: boolean; 
     Animated.timing(boost, { toValue: 0, duration: 3200, useNativeDriver: true }).start();
   }, [flare, boost]);
 
-  const c = caveCover(size.w, size.h);
+  // 넓은 동굴을 먼저 보여 주고 장작불 쪽으로 천천히 옮겨 감
+  const panX = useRef(new Animated.Value(0)).current;
+  const c0 = caveCover(size.w, size.h, 0);
+  const c = caveCover(size.w, size.h, 1);
+  useEffect(() => {
+    if (!size.w) return;
+    if (reduceMotion) {
+      panX.setValue(1);
+      return;
+    }
+    Animated.timing(panX, { toValue: 1, duration: CAVE_PAN.durationMs, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }).start();
+  }, [panX, reduceMotion, size.w]);
+  const shift = panX.interpolate({ inputRange: [0, 1], outputRange: [c0.ox - c.ox, 0] });
   const f = c.toScreen(FIRE.x, FIRE.y);
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none" onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
       {size.w > 0 && (
-        <>
+        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ translateX: shift }] }]}>
           <Image source={CAVE_IMAGE.source} style={{ position: 'absolute', left: c.ox, top: c.oy, width: CAVE_IMAGE.width * c.k, height: CAVE_IMAGE.height * c.k }} />
           <Animated.View style={[StyleSheet.absoluteFill, { opacity: Animated.add(flick, Animated.multiply(boost, 0.5)) }]}>
             <Svg width={size.w} height={size.h}>
@@ -51,10 +63,10 @@ export function CaveScene({ reduceMotion, flare = 0 }: { reduceMotion: boolean; 
                 </RadialGradient>
               </Defs>
               <Rect width={size.w} height={size.h} fill="url(#warm)" />
-              <Ellipse cx={f.x} cy={f.y - 34} rx={34} ry={52} fill="url(#flame)" />
+              <Ellipse cx={f.x} cy={f.y - 20} rx={20} ry={30} fill="url(#flame)" />
             </Svg>
           </Animated.View>
-        </>
+        </Animated.View>
       )}
     </View>
   );

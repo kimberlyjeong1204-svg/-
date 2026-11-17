@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Asset } from 'expo-asset';
-import { CAVE_IMAGE, FIRE, caveCover } from './caveConfig';
+import { CAVE_IMAGE, CAVE_PAN, FIRE, caveCover, easePan } from './caveConfig';
 
 /**
  * 동굴 화면 (웹앱) — 바위 그림 위에 장작불을 코드로 그립니다.
@@ -36,11 +36,14 @@ export function CaveScene({ reduceMotion, flare = 0 }: Props) {
     let last = performance.now() / 1000;
     let flick = 1;
 
+    // 들어오면 넓은 동굴을 먼저 보여 주고 장작불 쪽으로 천천히 옮겨 감
+    const t0 = performance.now();
+    let pan = reduceRef.current ? 1 : 0;
     const drawBg = () => {
       bg.fillStyle = '#07090a';
       bg.fillRect(0, 0, W, H);
       if (!img) return;
-      const c = caveCover(W, H);
+      const c = caveCover(W, H, pan);
       bg.drawImage(img, c.ox, c.oy, CAVE_IMAGE.width * c.k, CAVE_IMAGE.height * c.k);
     };
     const layout = () => {
@@ -60,7 +63,11 @@ export function CaveScene({ reduceMotion, flare = 0 }: Props) {
       const dt = Math.min(0.05, now - last);
       last = now;
       const reduce = reduceRef.current;
-      const c = caveCover(W, H);
+      if (pan < 1) {
+        pan = reduce ? 1 : easePan(Math.min(1, (performance.now() - t0) / CAVE_PAN.durationMs));
+        drawBg();
+      }
+      const c = caveCover(W, H, pan);
       const f = c.toScreen(FIRE.x, FIRE.y);
       const u = (W / 800) * FIRE.scale; // 화면 크기 기준 단위
       const flareAmt = Math.max(0, 1 - (now - flareAt.current) / 3.2);
@@ -88,7 +95,7 @@ export function CaveScene({ reduceMotion, flare = 0 }: Props) {
       fx.fillRect(0, 0, W, H);
 
       // 3) 장작더미(임시 그림일 때만)
-      if (CAVE_IMAGE.temporary) {
+      if (CAVE_IMAGE.drawLogs) {
         fx.save();
         fx.translate(f.x, f.y + 8 * u);
         for (const [rot, len] of [[-0.35, 150], [0.38, 140], [0.05, 120]] as const) {
@@ -114,9 +121,11 @@ export function CaveScene({ reduceMotion, flare = 0 }: Props) {
 
       // 4) 불꽃 입자
       fx.globalCompositeOperation = 'lighter';
-      const spawn = (reduce ? 18 : 70) * power * dt * 10;
+      // 그림에 불이 있으면(sparksOnly) 불꽃은 겹치지 않게 불티만
+      const sparksOnly = (FIRE as { sparksOnly?: boolean }).sparksOnly === true;
+      const spawn = (reduce ? 18 : 70) * power * dt * 10 * (sparksOnly ? 0.06 : 1);
       for (let i = 0; i < spawn; i++) {
-        const spark = Math.random() < 0.025 * power;
+        const spark = sparksOnly || Math.random() < 0.025 * power;
         parts.push({
           x: f.x + (Math.random() - 0.5) * 70 * u,
           y: f.y - 6 * u,

@@ -82,9 +82,9 @@ export default function ForestHome() {
       <SafeAreaView style={styles.safe} edges={['bottom']} pointerEvents="box-none">
         <View style={styles.spacer} pointerEvents="none" />
         <Animated.View style={[styles.choices, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
-          <ForestButton label="숨 고르기" size="sm" onPress={() => router.push('/forest/breathe?start=1')} accessibilityHint="누르면 바로 숨 고르기를 시작해요" />
-          <ForestButton label="숲에 머물기" size="sm" onPress={() => router.push('/forest/stay')} />
-          <ForestButton label="동굴 가기" size="sm" onPress={enterCave} accessibilityLabel="동굴 가기" />
+          <ForestButton label="숨 고르기" size="md" variant="solid" onPress={() => router.push('/forest/breathe?start=1')} accessibilityHint="누르면 바로 숨 고르기를 시작해요" />
+          <ForestButton label="숲 거닐기" size="md" variant="solid" onPress={() => router.push('/forest/stay')} />
+          <ForestButton label="동굴 가기" size="md" variant="solid" onPress={enterCave} accessibilityLabel="동굴 가기" />
         </Animated.View>
         {/* 메뉴가 숨었을 때만 보이는 작은 버튼 */}
         {uiHidden && (
