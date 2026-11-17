@@ -15,6 +15,7 @@ export const KEYS = {
   forestSoundPref: 'shimpyo.forestSoundPref',
   forestGateSeen: 'shimpyo.forestGateSeen',
   caveFire: 'shimpyo.caveFire',
+  walkLight: 'shimpyo.walkLight',
   breathDuration: 'shimpyo.breathDuration',
   restAlarm: 'shimpyo.restAlarm',
   bedtimeAlarm: 'shimpyo.bedtimeAlarm',

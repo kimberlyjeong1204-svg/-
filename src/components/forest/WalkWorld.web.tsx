@@ -3,7 +3,8 @@ import { Animated, Image, StyleSheet, Text, View, useWindowDimensions } from 're
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForestSpace } from './ForestSpace';
-import { FOREST_TEXT, ForestButton } from './ui';
+import { FOREST_TEXT, ForestButton, ForestChoiceGroup } from './ui';
+import { KEYS, isOneOf, usePersistentState } from '../../lib/storage';
 import { WindChime } from './WindChime';
 import { forestImages } from './forestConfig';
 import { useReduceMotion } from '../BreathCircle';
@@ -51,7 +52,18 @@ const PLACES: Record<PlaceId, { stopS: number; side: 1 | -1 }> = {
 
 type Spot = PlaceId | 'end' | 'start';
 type WorldState = { s: number; lat: number; yaw: number; speed: number; arrived: Spot | null; sitting: boolean; eye: number; dir: 1 | -1; face: number };
-type WorldApi = { dispose: () => void; turnAround: () => void; state: () => WorldState };
+type WorldApi = { dispose: () => void; turnAround: () => void; state: () => WorldState; setMood: (m: Mood) => void };
+
+/** 걷는 시간(밝기): 밤 · 새벽. 바꾸면 약 1.5초에 걸쳐 빛·안개가 바뀜 */
+export type Mood = 'night' | 'dawn';
+export const MOODS: readonly Mood[] = ['night', 'dawn'];
+type MoodLook = { exposure: number; sky: number; ground: number; hemi: number; key: number; keyInt: number; keyPos: [number, number, number]; fog: number; fogDensity: number; flies: number };
+const LOOK: Record<Mood, MoodLook> = {
+  // 밤: 달빛 숲(예전보다 조금 밝게)
+  night: { exposure: 1.45, sky: 0x8fb0bc, ground: 0x1e2a1f, hemi: 1.8, key: 0xa9c4d4, keyInt: 1.1, keyPos: [-20, 40, 10], fog: 0x10252b, fogDensity: 0.03, flies: 1 },
+  // 새벽: 옅은 푸른 안개, 앞쪽 낮은 곳에서 들어오는 따뜻한 빛
+  dawn: { exposure: 1.7, sky: 0xdfe8ee, ground: 0x4d4a3c, hemi: 2.4, key: 0xffd6ae, keyInt: 1.7, keyPos: [25, 14, -70], fog: 0x9db2b8, fogDensity: 0.024, flies: 0.25 },
+};
 
 export function WalkWorld() {
   const { uiOpacity, uiHidden, wakeUi, setHideDelay, soundOn, soundStatus, setLeaveGuard, setAutoHide } = useForestSpace();
@@ -60,6 +72,10 @@ export function WalkWorld() {
   const audible = soundOn && soundStatus === 'on';
   const boxRef = useRef<any>(null); // 웹에서는 div
   const [arrived, setArrived] = useState<Spot | null>(null);
+  // 걷는 시간(밝기): 밤 · 새벽, 기기에 기억
+  const [mood, setMood] = usePersistentState<Mood>(KEYS.walkLight, 'dawn', isOneOf(MOODS));
+  const moodRef = useRef(mood);
+  moodRef.current = mood;
   const [exitOpen, setExitOpen] = useState(false);
   const api = useRef<WorldApi | null>(null);
   const [sitting, setSitting] = useState(false);
@@ -135,6 +151,7 @@ export function WalkWorld() {
           isAudible: () => audibleRef.current,
           reduce: () => reduceRef.current,
           onLost: () => setFailed(true),
+          mood: moodRef.current,
         });
         api.current = a;
         cleanup = a.dispose;
@@ -152,6 +169,10 @@ export function WalkWorld() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    api.current?.setMood(mood);
+  }, [mood, ready]);
+
   const sit = (on: boolean) => {
     setSitting(on);
     (window as unknown as { __shimpyoWorldSit?: (on: boolean) => void }).__shimpyoWorldSit?.(on);
@@ -159,9 +180,9 @@ export function WalkWorld() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: mood === 'dawn' ? '#9db2b8' : '#10252b' }]}>
       <View ref={boxRef} style={StyleSheet.absoluteFill} />
-      {!ready && !failed && <View style={[StyleSheet.absoluteFill, styles.loading]} pointerEvents="none" />}
+      {!ready && !failed && <View style={[StyleSheet.absoluteFill, { backgroundColor: mood === 'dawn' ? '#9db2b8' : '#10252b' }]} pointerEvents="none" />}
       {failed && (
         // 3D를 열 수 없으면: 걷는 법·조작은 숨기고 숲 그림과 돌아가는 버튼만
         <View style={StyleSheet.absoluteFill}>
@@ -201,6 +222,7 @@ export function WalkWorld() {
           {(arrived === 'waterfall' || arrived === 'tree') &&
             (sitting ? <ForestButton label="일어나기" variant="solid" onPress={() => sit(false)} /> : <ForestButton label="잠시 앉기" variant="solid" onPress={() => sit(true)} />)}
           {!moved && !arrived && <Text style={FOREST_TEXT.caption}>화면을 누른 채 위로 밀면 걸어요 · 좌우로 밀면 방향을 바꿔요</Text>}
+          <ForestChoiceGroup label="걷는 시간" showLabel={false} align="center" options={[{ value: 'night' as Mood, label: '밤' }, { value: 'dawn' as Mood, label: '새벽' }]} value={mood} onChange={setMood} />
           {arrived !== 'end' && arrived !== 'start' && <ForestButton label="나가기" variant="quiet" size="sm" onPress={() => setExitOpen(true)} />}
         </Animated.View>
       </SafeAreaView>
@@ -221,6 +243,7 @@ export function WalkWorld() {
 }
 
 type Hooks = {
+  mood: Mood;
   onArrive: (p: Spot | null) => void;
   onMoveStart: () => void;
   isSitting: () => boolean;
@@ -266,7 +289,8 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.25;
+  const look0 = LOOK[hooks.mood];
+  renderer.toneMappingExposure = look0.exposure;
   const canvas = renderer.domElement;
   canvas.addEventListener('webglcontextlost', (e) => {
     e.preventDefault();
@@ -277,15 +301,48 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
   host.appendChild(canvas);
 
   const scene = new THREE.Scene();
-  const fogColor = new THREE.Color(0x0b1c21);
+  const fogColor = new THREE.Color(look0.fog);
   scene.background = fogColor;
-  scene.fog = new THREE.FogExp2(fogColor, 0.034);
+  const fog = new THREE.FogExp2(fogColor, look0.fogDensity);
+  scene.fog = fog;
   const camera = new THREE.PerspectiveCamera(62, 1, 0.08, 120);
 
-  scene.add(new THREE.HemisphereLight(0x86a8b4, 0x18241a, 1.5));
-  const moon = new THREE.DirectionalLight(0xa9c4d4, 0.9);
-  moon.position.set(-20, 40, 10);
+  const hemi = new THREE.HemisphereLight(look0.sky, look0.ground, look0.hemi);
+  scene.add(hemi);
+  const moon = new THREE.DirectionalLight(look0.key, look0.keyInt);
+  moon.position.set(...look0.keyPos);
   scene.add(moon);
+  // 밤 ↔ 새벽: 목표 모습으로 천천히 옮겨 감
+  let moodTarget: MoodLook = look0;
+  const cur = { ...look0, skyC: new THREE.Color(look0.sky), groundC: new THREE.Color(look0.ground), keyC: new THREE.Color(look0.key), fogC: new THREE.Color(look0.fog), pos: new THREE.Vector3(...look0.keyPos) };
+  const tmpC = new THREE.Color();
+  const tmpV = new THREE.Vector3();
+  const stepMood = (dt: number) => {
+    const k = Math.min(1, dt * 2);
+    cur.exposure += (moodTarget.exposure - cur.exposure) * k;
+    cur.hemi += (moodTarget.hemi - cur.hemi) * k;
+    cur.keyInt += (moodTarget.keyInt - cur.keyInt) * k;
+    cur.fogDensity += (moodTarget.fogDensity - cur.fogDensity) * k;
+    cur.flies += (moodTarget.flies - cur.flies) * k;
+    cur.skyC.lerp(tmpC.set(moodTarget.sky), k);
+    cur.groundC.lerp(tmpC.set(moodTarget.ground), k);
+    cur.keyC.lerp(tmpC.set(moodTarget.key), k);
+    cur.fogC.lerp(tmpC.set(moodTarget.fog), k);
+    cur.pos.lerp(tmpV.set(...moodTarget.keyPos), k);
+    renderer.toneMappingExposure = cur.exposure;
+    hemi.color.copy(cur.skyC);
+    hemi.groundColor.copy(cur.groundC);
+    hemi.intensity = cur.hemi;
+    moon.color.copy(cur.keyC);
+    moon.intensity = cur.keyInt;
+    moon.position.copy(cur.pos);
+    fogColor.copy(cur.fogC);
+    fog.color.copy(cur.fogC);
+    fog.density = cur.fogDensity;
+  };
+  const setMood = (m: Mood) => {
+    moodTarget = LOOK[m];
+  };
 
   const world = (s: number, lat: number) => {
     const a = pathAngle(s);
@@ -543,7 +600,8 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
     g.fillStyle = gr;
     g.fillRect(0, 0, 32, 32);
   }, [1, 1]);
-  const flies = new THREE.Points(flyGeo, new THREE.PointsMaterial({ size: 0.18, map: flyTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  const flyMat = new THREE.PointsMaterial({ size: 0.18, map: flyTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const flies = new THREE.Points(flyGeo, flyMat);
   scene.add(flies);
 
   // 길 끝 동굴 입구: 바위 더미 사이 어두운 입구, 안쪽에서 장작불 빛이 일렁임
@@ -803,6 +861,8 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
     const t = now / 1000;
     waterUniforms.t.value = t;
     caveLight.intensity = 5 + 1.6 * Math.sin(t * 2.3) + 0.8 * Math.sin(t * 5.7 + 1);
+    stepMood(dt);
+    flyMat.opacity = cur.flies;
     mists.forEach((m, i) => {
       m.position.y = 0.7 + 0.25 * Math.sin(t * 0.3 + i);
     });
@@ -841,7 +901,7 @@ function buildWorld(THREE: typeof import('three'), host: HTMLDivElement, hooks: 
     delete w.__shimpyoWorldSit;
     delete w.__shimpyoWorldTurn;
   };
-  return { dispose, turnAround, state: () => st };
+  return { dispose, turnAround, state: () => st, setMood };
 }
 
 const styles = StyleSheet.create({
