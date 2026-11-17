@@ -11,14 +11,19 @@ const host = process.env.VERCEL_ENV === 'production' ? process.env.VERCEL_PROJEC
 const site = host ? `https://${host}` : '';
 const indexHtml = readFileSync(join(dist, 'index.html'), 'utf8').replaceAll('%SITE%', site);
 writeFileSync(join(dist, 'index.html'), indexHtml);
-// 숲 선물 링크(/gift) 미리보기: 같은 앱을 열되 제목·설명·그림만 선물용으로
+// 숲 선물 링크(/gift) 미리보기: 같은 앱을 열되 제목·설명만 선물용으로 (그림은 같은 앱 아이콘 og-image.png)
+// /gift는 서버가 이 정적 HTML(dist/gift/index.html)을 그대로 돌려주므로, 미리보기 봇도 메타태그를 읽음
+const giftTitle = '누군가 당신에게 작은 숲을 선물했어요';
+const giftDesc = '쉼표. 잠깐 쉬어 갈 수 있는 작은 숲';
 const giftHtml = indexHtml
-  .replace('<meta property="og:title" content="쉼표. 나만의 숲" />', '<meta property="og:title" content="누군가 당신에게 작은 숲을 선물했어요" />')
-  .replace('<meta property="og:description" content="숨 고르기와 숲에 머물기로 잠깐 쉬어 가는 곳" />', '<meta property="og:description" content="쉼표. 잠깐 쉬어 갈 수 있는 작은 숲" />')
-  .replace(`${site}/og-forest.jpg`, `${site}/og-gift.jpg`)
-  .replace(`content="${site}/"`, `content="${site}/gift"`)
+  .replace('<meta property="og:title" content="쉼표. 나만의 숲" />', `<meta property="og:title" content="${giftTitle}" />`)
+  .replace('<meta property="og:description" content="숨 고르기와 숲에 머물기로 잠깐 쉬어 가는 곳" />', `<meta property="og:description" content="${giftDesc}" />`)
+  .replace('<meta name="twitter:title" content="쉼표. 나만의 숲" />', `<meta name="twitter:title" content="${giftTitle}" />`)
+  .replace('<meta name="twitter:description" content="숨 고르기와 숲에 머물기로 잠깐 쉬어 가는 곳" />', `<meta name="twitter:description" content="${giftDesc}" />`)
+  .replace(`<meta property="og:url" content="${site}/" />`, `<meta property="og:url" content="${site}/gift" />`)
   .replace('<title>쉼표.</title>', '<title>쉼표. 작은 숲 선물</title>');
 mkdirSync(join(dist, 'gift'), { recursive: true });
+for (const must of [giftTitle, `${site}/og-image.png`, 'twitter:card']) if (!giftHtml.includes(must)) throw new Error(`/gift 미리보기 메타태그 누락: ${must}`);
 writeFileSync(join(dist, 'gift', 'index.html'), giftHtml);
 const files = [];
 const walk = (dir) => {
