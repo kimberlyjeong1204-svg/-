@@ -68,6 +68,8 @@ export default function Home() {
               <Text style={styles.linkLabel}>숲에 머물기</Text>
             </Pressable>
           </View>
+          {/* 만든 사람 */}
+          <Text style={styles.credit}>By 쥬쥬</Text>
         </View>
       </SafeAreaView>
       {note && (
@@ -97,8 +99,9 @@ const styles = StyleSheet.create({
   titleCompact: { fontSize: 46, lineHeight: 56 },
   brand: { fontFamily: fonts.displayRegular, fontSize: 17, lineHeight: 24, color: FOREST_UI.inkSoft, letterSpacing: 2, ...FOREST_UI.textShadow },
   spacer: { flex: 1 },
-  actions: { paddingHorizontal: 36, paddingBottom: 34, gap: 14 },
-  actionsCompact: { paddingBottom: 20 },
+  actions: { paddingHorizontal: 36, paddingBottom: 14, gap: 14 },
+  credit: { ...FOREST_TEXT.caption, fontSize: 11, letterSpacing: 0.5, color: FOREST_UI.inkSoft, opacity: 0.55, marginTop: 4 },
+  actionsCompact: { paddingBottom: 8 },
   links: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   link: { minHeight: HIT, paddingHorizontal: 12, justifyContent: 'center' },
   linkLabel: { ...FOREST_TEXT.caption, fontSize: 15, color: FOREST_UI.ink },
