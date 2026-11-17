@@ -7,7 +7,7 @@ import { Platform, Share } from 'react-native';
  * - 주소는 늘 https://shimpyo-six.vercel.app/gift (EXPO_PUBLIC_WEB_URL로 바꿀 수 있음)
  */
 export const GIFT_TITLE = '쉼표. 작은 숲 선물';
-export const GIFT_TEXT = '잠깐 쉬어 갈 수 있는 작은 숲을 보내요.';
+export const GIFT_TEXT = '숲 들어가기 🌳🌳';
 
 export type GiftResult = 'shared' | 'copied' | 'cancelled' | 'failed';
 
