@@ -41,6 +41,15 @@ export const forestImages = {
  *  - 화면이 이미지보다 좁으면 좌우를 잘라내되 사람이 가운데쯤 오게
  *  - 화면이 이미지보다 넓으면 위아래를 잘라내되 사람이 아래 40% 지점쯤 오게
  */
+/** 숲 그림 속 동굴 입구: 오른쪽 깊은 숲길 끝에서 장작불 빛이 아주 옅게 새어 나오는 곳 (그림 비율 좌표) */
+export const CAVE_SPOT = { u: 0.69, v: 0.555 };
+
+/** 숲 그림 좌표(0~1) → 화면 좌표 (숲 장면과 같은 구도) */
+export function forestToScreen(u: number, v: number, screenW: number, screenH: number) {
+  const view = coverView(screenW, screenH);
+  return { x: ((u - view.ox) / view.sx) * screenW, y: ((v - view.oy) / view.sy) * screenH };
+}
+
 export function coverView(screenW: number, screenH: number) {
   const A = screenW / Math.max(1, screenH);
   const I = FOREST_IMAGE.width / FOREST_IMAGE.height;

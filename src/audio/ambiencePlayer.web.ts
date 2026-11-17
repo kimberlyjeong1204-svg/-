@@ -1,5 +1,7 @@
 import { Asset } from 'expo-asset';
 import { AMBIENCES, isAmbience, type Ambience, type SoundKey, type TrackKey } from './sounds';
+import { BufferLoopPlayer } from './bufferLoopPlayer.web';
+import { equalPowerIn, equalPowerOut, existingContext, getContext, setAmbientSession } from './webAudio';
 
 /**
  * 웹앱(PWA)용 환경음 재생기. 네이티브(ambiencePlayer.ts)와 같은 방식으로 동작합니다.
@@ -12,46 +14,8 @@ import { AMBIENCES, isAmbience, type Ambience, type SoundKey, type TrackKey } fr
 
 type Voice = { el: HTMLAudioElement; gain: GainNode | null; level: number; doneTimer: ReturnType<typeof setTimeout> | null };
 
-type AudioSessionNavigator = Navigator & { audioSession?: { type: string } };
-
-let ctx: AudioContext | null = null;
-
-function getContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  if (!ctx) {
-    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return null;
-    try {
-      ctx = new Ctor();
-    } catch {
-      return null;
-    }
-  }
-  return ctx;
-}
-
-function setAmbientSession() {
-  try {
-    const nav = navigator as AudioSessionNavigator;
-    if (nav.audioSession) nav.audioSession.type = 'ambient';
-  } catch {
-    // 지원하지 않는 브라우저
-  }
-}
-
-// 첫 터치·클릭 때 오디오를 깨워 둡니다(iOS Safari 자동 재생 제한).
-if (typeof window !== 'undefined') {
-  const unlock = () => {
-    setAmbientSession();
-    const c = getContext();
-    if (c && c.state === 'suspended') void c.resume().catch(() => {});
-  };
-  for (const ev of ['pointerdown', 'touchend', 'keydown']) window.addEventListener(ev, unlock, { capture: true, passive: true });
-}
-
-// 0→1로 커지는 진행 곡선. 크로스페이드 중 두 소리를 합친 크기가 일정하게 들리도록 합니다.
-const equalPowerIn = (n: number) => Float32Array.from({ length: n }, (_, i) => Math.sin(((i / (n - 1)) * Math.PI) / 2));
-const equalPowerOut = (n: number) => Float32Array.from({ length: n }, (_, i) => 1 - Math.cos(((i / (n - 1)) * Math.PI) / 2));
+// 이 재생기(빗소리)는 오디오 요소를 씁니다: 수 분짜리 음원도 메모리를 적게 씀.
+// 숲 소리처럼 끊김 없이 오래 반복해야 하는 짧은 음원은 bufferLoopPlayer.web.ts(Web Audio 버퍼)를 씁니다.
 
 export class WebAmbiencePlayer {
   private track: Ambience | null = null;
@@ -63,6 +27,10 @@ export class WebAmbiencePlayer {
   private generation = 0;
   /** 사용자가 정한 음량(0~1). 숲 소리처럼 트랙마다 음량을 조절할 때 씁니다. 기본 1 */
   private userVolume = 1;
+  /** 브라우저가 재생을 막았는지 (화면을 누르기 전 자동 재생 제한 등) */
+  private blocked = false;
+  /** play()가 성공해 실제로 재생이 시작됐는지 */
+  private confirmed = false;
 
   get currentKey(): TrackKey | 'none' {
     return this.track?.key ?? 'none';
@@ -82,6 +50,42 @@ export class WebAmbiencePlayer {
     return this.voices != null && !this.paused;
   }
 
+  /**
+   * 재생하려 했지만 실제로는 소리가 나지 않는 상태인지.
+   * (브라우저가 재생을 막았거나, 오디오가 아직 잠겨 있음) 이때는 「켜짐」으로 보이면 안 됩니다.
+   */
+  get playbackBlocked(): boolean {
+    if (!this.voices || this.paused) return false;
+    if (this.blocked) return true;
+    const c = existingContext();
+    return c != null && c.state !== 'running';
+  }
+
+  /** 실제로 소리가 나고 있는지 (재생 시작이 확인됨 + 오디오가 잠겨 있지 않음) */
+  get isSounding(): boolean {
+    return this.voices != null && !this.paused && this.confirmed && !this.playbackBlocked;
+  }
+
+  /** 사용자가 화면을 누른 순간에 다시 재생을 시도합니다 (막혔을 때) */
+  retry() {
+    const c = getContext();
+    if (c && c.state !== 'running') void c.resume().catch(() => {});
+    if (this.voices && !this.paused) this.resume(800);
+  }
+
+  private playEl(el: HTMLAudioElement) {
+    return el.play().then(
+      () => {
+        this.blocked = false;
+        this.confirmed = true;
+      },
+      () => {
+        this.blocked = true;
+        this.confirmed = false;
+      },
+    );
+  }
+
   async start(key: SoundKey, fadeInMs = 1500) {
     if (!isAmbience(key)) {
       this.fadeOutAndStop(600);
@@ -99,13 +103,15 @@ export class WebAmbiencePlayer {
     const gen = ++this.generation;
     this.releaseNow();
     this.paused = false;
+    this.confirmed = false;
     setAmbientSession();
 
     const uri = await resolveUri(track.source);
     if (gen !== this.generation || !uri) return;
 
     const c = getContext();
-    if (c && c.state === 'suspended') await c.resume().catch(() => {});
+    // 화면을 누르기 전에는 resume()이 끝나지 않을 수 있어 기다리지 않습니다(막힘 상태는 playbackBlocked로 알림).
+    if (c && c.state === 'suspended') void c.resume().catch(() => {});
     const voices: [Voice, Voice] = [makeVoice(uri, c), makeVoice(uri, c)];
     this.track = track;
     this.voices = voices;
@@ -115,7 +121,7 @@ export class WebAmbiencePlayer {
     const first = voices[0];
     await seek(first.el, track.loopStart);
     if (gen !== this.generation || this.paused) return;
-    await first.el.play().catch(() => {});
+    await this.playEl(first.el);
     this.ramp(first, 1, fadeInMs);
     this.ensureMonitor();
   }
@@ -134,6 +140,8 @@ export class WebAmbiencePlayer {
   }
 
   resume(fadeInMs = 1000) {
+    // 줄어들며 멈추는 중이었다면 그 멈춤을 취소 (빠르게 다시 고른 경우 소리가 끊기지 않게)
+    this.generation += 1;
     const voices = this.voices;
     const track = this.track;
     if (!voices || !track) return;
@@ -144,7 +152,7 @@ export class WebAmbiencePlayer {
     this.ramp(other, 0, 1);
     other.el.pause();
     if (v.el.currentTime < track.loopStart) void seek(v.el, track.loopStart);
-    void v.el.play().catch(() => {});
+    void this.playEl(v.el);
     this.ramp(v, 1, fadeInMs);
     this.ensureMonitor();
   }
@@ -207,7 +215,7 @@ export class WebAmbiencePlayer {
     const track = this.track;
     const gainTarget = to * (track?.gain ?? 1) * this.userVolume;
     if (v.doneTimer) clearTimeout(v.doneTimer);
-    const c = ctx;
+    const c = existingContext();
     if (v.gain && c) {
       const now = c.currentTime;
       const g = v.gain.gain;
@@ -337,7 +345,56 @@ function seek(el: HTMLAudioElement, seconds: number) {
   });
 }
 
-export const ambience = new WebAmbiencePlayer();
+/**
+ * 빗소리 재생기 (웹): 음원 길이에 따라 재생 방식을 고릅니다.
+ * - 가벼운 비(96초, Rain Mode에서 오래 반복): Web Audio 버퍼 → 아이폰에서 반복 이음새가 끊기지 않음
+ * - 잔잔한 비(5분 이상, 숨 고르기 최대 3분이라 반복 없음): 오디오 요소 → 메모리를 적게 씀
+ */
+class RainPlayer {
+  private element = new WebAmbiencePlayer();
+  private buffer = new BufferLoopPlayer();
+  private active: WebAmbiencePlayer | BufferLoopPlayer | null = null;
 
-/** 숲 소리처럼 여러 트랙을 동시에 쓸 때 새 재생기를 만듭니다 (네이티브와 같은 이름) */
-export const AmbiencePlayer = WebAmbiencePlayer;
+  get currentKey(): TrackKey | 'none' {
+    return this.active?.currentKey ?? 'none';
+  }
+
+  get isPlaying(): boolean {
+    return this.active?.isPlaying ?? false;
+  }
+
+  async start(key: SoundKey, fadeInMs = 1500) {
+    if (!isAmbience(key)) {
+      this.fadeOutAndStop(600);
+      return;
+    }
+    const next = key === 'lightRain' ? this.buffer : this.element;
+    if (this.active && this.active !== next) this.active.fadeOutAndStop(300);
+    this.active = next;
+    await next.playTrack(AMBIENCES[key], fadeInMs);
+  }
+
+  pause(fadeMs = 500) {
+    this.active?.pause(fadeMs);
+  }
+
+  resume(fadeInMs = 1000) {
+    this.active?.resume(fadeInMs);
+  }
+
+  fadeOutAndStop(fadeMs = 3000) {
+    this.active?.fadeOutAndStop(fadeMs);
+  }
+}
+
+export const ambience = new RainPlayer();
+/** 비 종류를 바꿀 때 겹쳐 넘기기 위한 두 번째 재생기 (한 번에 하나만 들림) */
+export const ambienceAlt = new RainPlayer();
+
+/**
+ * 숲 소리처럼 여러 트랙을 동시에 쓸 때 새 재생기를 만듭니다 (네이티브와 같은 이름).
+ * 웹에서는 Web Audio 버퍼로 재생합니다: 아이폰 Safari에서 반복 이음새마다 오디오 요소를 새로 재생하다
+ * 막혀 소리가 끊기던 문제를 없애고, 이음새를 오디오 시계에 맞춰 정확히 겹칩니다.
+ */
+export const AmbiencePlayer = BufferLoopPlayer;
+export type AmbiencePlayer = BufferLoopPlayer;

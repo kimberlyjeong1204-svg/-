@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { ambience } from './ambiencePlayer';
+import { driveRain, stopRain } from './rainChannel';
 import { SOUND_KEYS, isAmbience, type SoundKey } from './sounds';
 import { addOtherAudioListener, isOtherAudioPlaying } from '../../modules/other-audio';
 import { KEYS, isOneOf, usePersistentState } from '../lib/storage';
@@ -22,6 +22,8 @@ export function useSoundChoice() {
  *   휴식 중에 음악이 멈추면 빗소리가 다시 천천히 들어옵니다.
  *   휴식 중에 사용자가 직접 빗소리를 다시 고르면 그 선택을 따릅니다.
  * - 다른 앱으로 전환하면 빗소리는 잠시 멈추고, 돌아오면 이어서 재생합니다. 타이머는 계속 흐릅니다.
+ * - 쉬는 중에 비 종류를 바꾸면 두 재생기로 2초 동안 겹쳐 넘깁니다(끊김·중복 없음, 들리는 비는 항상 하나).
+ *   이 두 재생기가 앱의 「비 소리 채널」입니다. Rain Mode(Phase 3)도 같은 채널을 써서 비가 두 번 나지 않게 합니다.
  *
  * @returns yieldedToMusic: 다른 앱 음악 때문에 빗소리를 꺼 둔 상태인지 (화면 안내용)
  */
@@ -74,22 +76,14 @@ export function useAmbience(phase: SessionPhase, sound: SoundKey) {
     if (yieldNow !== yielded) setYielded(yieldNow);
 
     if (!isAmbience(sound) || phase === 'idle' || phase === 'done') {
-      ambience.fadeOutAndStop(phase === 'done' ? 3000 : 800);
+      driveRain({ key: null, playing: false, fadeOutMs: phase === 'done' ? 3000 : 800 });
       return;
     }
-    if (phase === 'paused' || yieldNow || !appActive) {
-      ambience.pause(!appActive ? 0 : yieldNow ? 1200 : 500);
-      return;
-    }
-    if (ambience.currentKey === sound) {
-      if (!ambience.isPlaying) ambience.resume(1200);
-    } else {
-      void ambience.start(sound);
-    }
+    driveRain({ key: sound, playing: !(phase === 'paused' || yieldNow || !appActive), pauseMs: !appActive ? 0 : yieldNow ? 1200 : 500 });
     // yielded는 위에서 계산해 반영하므로 의존성에 포함합니다.
   }, [phase, sound, yielded, appActive, inSession]);
 
-  useEffect(() => () => ambience.fadeOutAndStop(1500), []);
+  useEffect(() => () => stopRain(1500), []);
 
   return { yieldedToMusic: yielded && isAmbience(sound) && inSession };
 }

@@ -57,6 +57,17 @@ export function MoonIcon({ size = 20, color = colors.text }: P) {
   );
 }
 
+/** 숲 입구: 작은 나무 문과 낮은 울타리 */
+export function GateIcon({ size = 22, color = '#4F6142' }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M8 20V8.5a4 4 0 0 1 8 0V20" />
+      <Path d="M12 6v14" />
+      <Path d="M2.5 20h19M3.5 13.5h4.5M16 13.5h4.5M4.5 11v9M19.5 11v9" />
+    </Svg>
+  );
+}
+
 export function PlayIcon({ size = 24, color = colors.white }: P) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
@@ -127,6 +138,26 @@ export function DropIcon({ size = 24, color = colors.text }: P) {
   );
 }
 
+/** 비: 구름과 빗줄기 */
+export function RainIcon({ size = 22, color = colors.text }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M7 14.5a4 4 0 0 1-.6-7.95A5.5 5.5 0 0 1 17 7.5a3.5 3.5 0 0 1 .5 7" />
+      <Path d="M9 17l-1 2.5M13 17l-1 2.5M17 17l-1 2.5" />
+    </Svg>
+  );
+}
+
+/** 장작불: 동굴 */
+export function FlameIcon({ size = 22, color = colors.text }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1.2-3.6 2.4-4.6.2 1.6 1 2.6 2 3 0-3 .6-5.6.6-8.4z" />
+      <Path d="M5 21h14" />
+    </Svg>
+  );
+}
+
 export function StretchIcon({ size = 24, color = colors.text }: P) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
@@ -151,6 +182,16 @@ export function CheckboxIcon({ checked, size = 24 }: { checked: boolean; size?: 
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Rect x={1} y={1} width={22} height={22} rx={7} fill={checked ? colors.sageDeep : 'none'} stroke={checked ? colors.sageDeep : '#B9B8AA'} strokeWidth={1.5} />
       {checked && <Path d="M6.5 12.5l3.5 3.5 7.5-8" fill="none" stroke={colors.white} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />}
+    </Svg>
+  );
+}
+
+export function SlidersIcon({ size = 22, color = colors.textSoft }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round">
+      <Path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+      <Circle cx={16} cy={7} r={2} />
+      <Circle cx={10} cy={17} r={2} />
     </Svg>
   );
 }

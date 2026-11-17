@@ -138,6 +138,8 @@ export class AmbiencePlayer {
 
   /** 일시정지했던 소리를 다시 천천히 키움 */
   resume(fadeInMs = 1000) {
+    // 줄어들며 멈추는 중이었다면 그 멈춤을 취소 (빠르게 다시 고른 경우 소리가 끊기지 않게)
+    this.generation += 1;
     if (!this.voices) return;
     this.paused = false;
     this.crossfading = false;
@@ -179,6 +181,21 @@ export class AmbiencePlayer {
   /** 지금 재생 중인지 (일시정지·정지 상태가 아님) */
   get isPlaying(): boolean {
     return this.voices != null && !this.paused;
+  }
+
+  /** 앱(iOS)에는 브라우저 자동 재생 제한이 없어 항상 false (웹 재생기와 같은 모양) */
+  get playbackBlocked(): boolean {
+    return false;
+  }
+
+  /** 실제로 소리가 나고 있는지 (앱에서는 재생 중이면 소리가 남) */
+  get isSounding(): boolean {
+    return this.isPlaying;
+  }
+
+  /** 웹 재생기와 같은 모양: 일시정지가 아니면 이어서 재생 */
+  retry() {
+    if (this.voices && !this.paused) this.resume(800);
   }
 
   /** 휴식 중에 다른 소리를 고른 경우 */
@@ -331,3 +348,5 @@ async function safeSeek(player: AudioPlayer, seconds: number) {
 }
 
 export const ambience = new AmbiencePlayer();
+/** 쉬는 중에 비 종류를 바꿀 때 겹쳐 넘기기 위한 두 번째 재생기 (한 번에 하나만 들림) */
+export const ambienceAlt = new AmbiencePlayer();

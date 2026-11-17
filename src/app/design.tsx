@@ -15,7 +15,7 @@ import type { Days } from '../lib/schedule';
 
 const TYPE_SAMPLES: { name: string; spec: string; style: TextStyle; text: string }[] = [
   { name: '화면 제목', spec: 'SemiBold 19 / 26', style: type.title, text: '숨 고르기' },
-  { name: '버튼', spec: 'Medium 17 / 22', style: type.button, text: '멍때리기' },
+  { name: '버튼', spec: 'Medium 17 / 22', style: type.button, text: '숲으로 들어가기' },
   { name: '분할 선택', spec: 'Medium 16 / 21', style: type.segment, text: '30초 · 1분 · 3분' },
   { name: '호흡 문구', spec: 'Medium 18 / 28', style: type.cue, text: '긴장을 내려놓듯,\n천천히 내쉬어요' },
   { name: '호흡 문구(작은 화면)', spec: 'Medium 17 / 26', style: type.cueSmall, text: '편안하게 들이쉬어요' },
@@ -57,7 +57,7 @@ export default function DesignCheck() {
 
         <Section title="로고 (고운바탕, 예외)">
           <Text style={styles.logo}>쉼표.</Text>
-          <Text style={styles.slogan}>몰입하는 일상에, 잠깐의 여유.</Text>
+          <Text style={styles.slogan}>나만의 숲</Text>
         </Section>
 
         <Section title="글꼴과 크기 (Pretendard)">
@@ -78,7 +78,7 @@ export default function DesignCheck() {
           </View>
           <View style={[styles.btn, styles.btnSecondary]}>
             <CupIcon />
-            <Text style={[type.button, { color: colors.text }]}>멍때리기</Text>
+            <Text style={[type.button, { color: colors.text }]}>숲에 머물기</Text>
           </View>
           <Text style={styles.specLabel}>메인: 테두리 없음, 진한 세이지 · 보조: 테두리 없이 아주 약한 그림자</Text>
         </Section>

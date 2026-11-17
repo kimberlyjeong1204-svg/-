@@ -73,6 +73,11 @@ export function useSession(durationSec: number, onFrame?: (elapsedMs: number) =>
     setPhaseBoth('paused');
   }, [setPhaseBoth, stopLoop]);
 
+  /** 일시정지 중이면 다시 시작 (설정 창을 닫을 때 등) */
+  const resume = useCallback(() => {
+    if (phaseRef.current === 'paused') run();
+  }, [run]);
+
   const toggle = useCallback(() => {
     if (phaseRef.current === 'running') pause();
     else if (phaseRef.current === 'idle' || phaseRef.current === 'paused') run();
@@ -88,6 +93,22 @@ export function useSession(durationSec: number, onFrame?: (elapsedMs: number) =>
       setPhaseBoth('idle');
     },
     [setPhaseBoth, stopLoop],
+  );
+
+  /**
+   * 시간 바꾸기. 시작 전이면 그 시간으로 준비하고,
+   * 진행 중·일시정지 중이면 새 시간으로 처음부터 다시 셉니다(진행/일시정지 상태는 그대로).
+   */
+  const changeDuration = useCallback(
+    (nextDurationSec: number) => {
+      durationRef.current = nextDurationSec;
+      elapsedRef.current = 0;
+      lastTsRef.current = Date.now();
+      setRemainingSec(nextDurationSec);
+      if (phaseRef.current === 'done') setPhaseBoth('idle');
+      if (phaseRef.current !== 'idle') onFrameRef.current?.(0);
+    },
+    [setPhaseBoth],
   );
 
   // 다른 앱에서 돌아오면 바로 화면을 맞춥니다. (화면 갱신 루프는 백그라운드에서 멈춰 있다가 이어집니다.)
@@ -119,7 +140,7 @@ export function useSession(durationSec: number, onFrame?: (elapsedMs: number) =>
     [stopLoop],
   );
 
-  return { phase, remainingSec, toggle, pause, reset, elapsedRef };
+  return { phase, remainingSec, toggle, pause, resume, reset, changeDuration, elapsedRef };
 }
 
 export function formatTime(totalSec: number) {

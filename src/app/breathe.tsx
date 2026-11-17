@@ -24,8 +24,11 @@ const RHYTHM_OPTIONS = (Object.keys(RHYTHMS) as RhythmKey[]).map((k) => ({ value
 
 type Cue = { key: string; text: string };
 
+const isDuration = (v: unknown): v is number => v === 30 || v === 60 || v === 180;
+
 export default function Breathe() {
-  const [durationSec, setDurationSec] = useState(60);
+  // 마지막으로 고른 시간을 기억 (다시 와도 그대로)
+  const [durationSec, setDurationSec] = usePersistentState<number>(KEYS.breathDuration, 60, isDuration);
   const [rhythmKey, setRhythmKey] = usePersistentState<RhythmKey>(KEYS.breathRhythm, 'base', isOneOf(['base', 'slow'] as const));
   const [sound, setSound] = useSoundChoice();
   const rhythm = RHYTHMS[rhythmKey];
@@ -34,12 +37,15 @@ export default function Breathe() {
 
   const [cue, setCue] = useState<Cue>({ key: 'idle', text: idleCue(rhythm) });
   const cueKeyRef = useRef('idle');
+  // 호흡 주기의 시작점(ms). 쉬는 중에 리듬을 바꾸면 그 순간부터 새 들숨
+  const breathStart = useRef(0);
 
   const onFrame = useCallback(
     (ms: number) => {
-      anim.applyFrame(ms);
-      const f = breathFrame(ms, rhythm);
-      const key = `${f.inhaling ? 'in' : 'out'}-${f.cycle}`;
+      const t = Math.max(0, ms - breathStart.current);
+      anim.applyFrame(t);
+      const f = breathFrame(t, rhythm);
+      const key = `${rhythm.key}-${f.inhaling ? 'in' : 'out'}-${f.cycle}`;
       if (key !== cueKeyRef.current) {
         cueKeyRef.current = key;
         setCue({ key, text: f.inhaling ? CUE_INHALE : CUE_EXHALE });
@@ -50,10 +56,30 @@ export default function Breathe() {
 
   const session = useSession(durationSec, onFrame);
   const { phase } = session;
+  // 저장된 시간을 읽어 오면(시작 전) 타이머에 반영
+  const resetRef = useRef(session.reset);
+  resetRef.current = session.reset;
+  useEffect(() => {
+    if (phase === 'idle') resetRef.current(durationSec);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [durationSec]);
   const { yieldedToMusic } = useAmbience(phase, sound);
+
+  // 쉬는 중(진행·일시정지) 리듬 변경: 바로 새 들숨, 전체 남은 시간은 그대로
+  const prevRhythm = useRef(rhythmKey);
+  useEffect(() => {
+    if (prevRhythm.current === rhythmKey) return;
+    prevRhythm.current = rhythmKey;
+    if (phase === 'running' || phase === 'paused') {
+      breathStart.current = session.elapsedRef.current;
+      cueKeyRef.current = '';
+      onFrame(session.elapsedRef.current);
+    }
+  }, [rhythmKey, phase, session.elapsedRef, onFrame]);
 
   useEffect(() => {
     if (phase === 'idle') {
+      breathStart.current = 0;
       anim.rest();
       cueKeyRef.current = 'idle';
       setCue({ key: `idle-${rhythm.key}`, text: idleCue(rhythm) });
@@ -79,13 +105,16 @@ export default function Breathe() {
           accessibilityLabel="시간 선택"
           options={DURATIONS}
           value={durationSec}
-          disabled={!idle}
           onChange={(v) => {
+            // 시작 전: 그 시간으로 준비 / 쉬는 중: 새 시간으로 처음부터 다시
             setDurationSec(v);
-            session.reset(v);
+            breathStart.current = 0;
+            cueKeyRef.current = '';
+            if (idle) session.reset(v);
+            else session.changeDuration(v);
           }}
         />
-        <ChipGroup accessibilityLabel="호흡 리듬" options={RHYTHM_OPTIONS} value={rhythmKey} disabled={!idle} onChange={setRhythmKey} />
+        <ChipGroup accessibilityLabel="호흡 리듬" options={RHYTHM_OPTIONS} value={rhythmKey} onChange={setRhythmKey} />
       </View>
 
       <View style={styles.stage} onLayout={(e) => setStage({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
