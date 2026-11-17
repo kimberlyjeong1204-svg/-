@@ -133,8 +133,15 @@ export class BufferLoopPlayer {
       clearTimeout(this.stopTimer);
       this.stopTimer = null;
     }
+    // 음원을 불러오던 중에 멈췄다가 다시 켠 경우(버퍼 없음): 처음부터 다시 불러와 재생
+    if (!this.buffer || !this.out) {
+      const track = this.track;
+      this.track = null;
+      void this.playTrack(track, fadeInMs);
+      return;
+    }
     // 아직 소리가 이어지고 있으면(멈춤 페이드 중) 그대로 다시 키우기만 함 → 끊김 없음
-    if (this.segments.length === 0 && this.buffer) this.startSegments(c.currentTime + START_DELAY);
+    if (this.segments.length === 0) this.startSegments(c.currentTime + START_DELAY);
     this.rampLevel(1, fadeInMs);
   }
 
@@ -143,6 +150,12 @@ export class BufferLoopPlayer {
     wakeContext();
     const track = this.track;
     if (!track || this.paused) return;
+    if (this.buffer && this.out && this.segments.length === 0) {
+      const c = existingContext();
+      if (c) this.startSegments(c.currentTime + START_DELAY);
+      this.rampLevel(1, 800);
+      return;
+    }
     if (this.loadFailed || !this.buffer) {
       this.track = null;
       void this.playTrack(track, 800);
