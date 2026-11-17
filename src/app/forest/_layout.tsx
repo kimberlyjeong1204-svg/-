@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, Stack, ThemeProvider, router, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -165,7 +165,7 @@ function ForestShell() {
       }}
     >
       <StatusBar style="light" />
-      <ForestScene reduceMotion={reduceMotion} rain={raining} paused={inCave} registerTouch={onForestTouch} caveGlow />
+      <ForestScene reduceMotion={reduceMotion} rain={raining} paused={inCave || (Platform.OS === 'web' && pathname === '/forest/stay')} registerTouch={onForestTouch} caveGlow />
 
       {/* 숲 안의 화면들은 배경이 투명해야 뒤의 숲이 보입니다(기본 테마의 회색 배경을 끔) */}
       <View style={StyleSheet.absoluteFill}>
