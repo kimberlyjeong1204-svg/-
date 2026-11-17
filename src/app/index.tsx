@@ -1,16 +1,14 @@
 import { router } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
-import { ForestGate } from '../components/forest/ForestGate';
+import { HomeCover } from '../components/HomeCover';
+import { shareForest } from '../lib/gift';
 import { FOREST_UI } from '../components/forest/forestUi';
 import { FOREST_TEXT, ForestButton } from '../components/forest/ui';
-import { useReduceMotion } from '../components/BreathCircle';
 import { GearIcon } from '../components/icons';
 import { HIT, fonts, radius } from '../theme';
-
-const FOREST_BG = require('../../assets/forest/forest-bg.webp');
 
 /**
  * 홈 표지 (A1: 문 앞 몇 걸음 뒤)
@@ -20,30 +18,29 @@ const FOREST_BG = require('../../assets/forest/forest-bg.webp');
  * (만화풍 장식 없이 숲 그림만 씁니다. 크림색 홈 배경 그림 HomeBackdrop은 지우지 않고 남겨 둡니다.)
  */
 export default function Home() {
-  const { width, height } = useWindowDimensions();
+  const { height } = useWindowDimensions();
   const compact = height < 700;
-  const reduceMotion = useReduceMotion();
+  const [note, setNote] = useState<string | null>(null);
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gift = async () => {
+    const r = await shareForest();
+    const text = r === 'copied' ? '링크를 복사했어요. 보내고 싶은 곳에 붙여 넣어 주세요.' : r === 'failed' ? '링크를 만들지 못했어요. 잠시 뒤 다시 해 주세요.' : null;
+    if (!text) return;
+    setNote(text);
+    if (noteTimer.current) clearTimeout(noteTimer.current);
+    noteTimer.current = setTimeout(() => setNote(null), 3500);
+  };
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
-      {/* 문 너머: 숲 공간과 같은 숲 그림 */}
-      <Image source={FOREST_BG} style={{ position: 'absolute', left: 0, top: 0, width, height }} resizeMode="cover" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
-      <ForestGate cover reduceMotion={reduceMotion} />
-      {/* 글자가 잘 읽히도록 위·아래만 살짝 어둡게 */}
-      <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Defs>
-          <LinearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#060E10" stopOpacity={0.78} />
-            <Stop offset="0.36" stopColor="#060E10" stopOpacity={0.22} />
-            <Stop offset="0.62" stopColor="#060E10" stopOpacity={0.08} />
-            <Stop offset="1" stopColor="#060E10" stopOpacity={0.62} />
-          </LinearGradient>
-        </Defs>
-        <Rect width={width} height={height} fill="url(#shade)" />
-      </Svg>
+      <HomeCover />
 
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.topBar}>
+          {/* 숲 선물하기: 작고 은은하게 (링크만 나눔, 로그인·기록 없음) */}
+          <Pressable onPress={gift} accessibilityRole="button" accessibilityLabel="숲 선물하기. 이 숲으로 오는 링크를 보내요" style={({ pressed }) => [styles.giftBtn, pressed && styles.pressed]}>
+            <Text style={styles.giftText}>숲 선물하기</Text>
+          </Pressable>
           <Pressable onPress={() => router.push('/settings')} accessibilityRole="button" accessibilityLabel="설정" style={({ pressed }) => [styles.gear, pressed && styles.pressed]}>
             <GearIcon color={FOREST_UI.ink} />
           </Pressable>
@@ -71,8 +68,17 @@ export default function Home() {
               <Text style={styles.linkLabel}>숲에 머물기</Text>
             </Pressable>
           </View>
+          {/* 만든 사람 */}
+          <Text style={styles.credit}>By 쥬쥬</Text>
         </View>
       </SafeAreaView>
+      {note && (
+        <View style={styles.noteWrap} pointerEvents="none">
+          <Text style={styles.note} accessibilityLiveRegion="polite">
+            {note}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -80,7 +86,11 @@ export default function Home() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: FOREST_UI.ground },
   safe: { flex: 1 },
-  topBar: { height: 56, alignItems: 'flex-end', justifyContent: 'center', paddingHorizontal: 20 },
+  topBar: { height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
+  giftBtn: { minHeight: HIT, paddingHorizontal: 10, justifyContent: 'center' },
+  giftText: { ...FOREST_TEXT.caption, fontSize: 13, color: FOREST_UI.inkSoft, opacity: 0.85 },
+  noteWrap: { position: 'absolute', left: 0, right: 0, top: 110, alignItems: 'center', paddingHorizontal: 24 },
+  note: { ...FOREST_TEXT.caption, fontSize: 14, color: FOREST_UI.ink, paddingHorizontal: 16, paddingVertical: 10, borderRadius: radius.pill, backgroundColor: 'rgba(10, 22, 24, 0.7)', overflow: 'hidden' },
   gear: { width: HIT, height: HIT, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.5 },
   titleBlock: { marginTop: '10%', alignItems: 'center', gap: 10 },
@@ -89,8 +99,9 @@ const styles = StyleSheet.create({
   titleCompact: { fontSize: 46, lineHeight: 56 },
   brand: { fontFamily: fonts.displayRegular, fontSize: 17, lineHeight: 24, color: FOREST_UI.inkSoft, letterSpacing: 2, ...FOREST_UI.textShadow },
   spacer: { flex: 1 },
-  actions: { paddingHorizontal: 36, paddingBottom: 34, gap: 14 },
-  actionsCompact: { paddingBottom: 20 },
+  actions: { paddingHorizontal: 36, paddingBottom: 14, gap: 14 },
+  credit: { ...FOREST_TEXT.caption, fontSize: 11, letterSpacing: 0.5, color: FOREST_UI.inkSoft, opacity: 0.55, marginTop: 4 },
+  actionsCompact: { paddingBottom: 8 },
   links: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   link: { minHeight: HIT, paddingHorizontal: 12, justifyContent: 'center' },
   linkLabel: { ...FOREST_TEXT.caption, fontSize: 15, color: FOREST_UI.ink },

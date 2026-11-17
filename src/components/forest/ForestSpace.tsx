@@ -46,6 +46,8 @@ type ForestSpaceValue = {
   reportSound: (status: ForestSoundStatus, retry: () => void) => void;
   /** 재생이 막혔을 때 사용자가 누른 순간 다시 재생 */
   retrySound: () => void;
+  /** 숲 입구 연출처럼 숲 메뉴가 나오면 안 될 때 true */
+  setUiSuppressed: (on: boolean) => void;
   /** 화면마다 메뉴가 숨기까지의 시간(ms). 숲 첫 화면은 조금 길게 */
   setHideDelay: (ms: number) => void;
   /** 숲 그림을 만졌을 때(창 기준 좌표). 숲 장면이 잎 흔들림·반딧불이로 답함 */
@@ -103,7 +105,13 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
   const [uiHidden, setUiHidden] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // 숲 입구 연출 중에는 숲 메뉴를 깨우지 않음 (문틈으로 메뉴가 비쳐 보이지 않게)
+  const suppressed = useRef(false);
+  const setUiSuppressed = useCallback((on: boolean) => {
+    suppressed.current = on;
+  }, []);
   const wakeUi = useCallback(() => {
+    if (suppressed.current) return;
     Animated.timing(uiOpacity, { toValue: 1, duration: FOREST_MOTION.uiIn, useNativeDriver: true }).start();
     setUiHidden(false);
     if (timer.current) clearTimeout(timer.current);
@@ -149,6 +157,7 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
         reportSound,
         retrySound,
         setHideDelay,
+        setUiSuppressed,
         touchForest,
         onForestTouch,
         setAutoHide,

@@ -36,7 +36,7 @@ export default function ForestLayout() {
 }
 
 function ForestShell() {
-  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch, reportSound } = useForestSpace();
+  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch, reportSound, setUiSuppressed } = useForestSpace();
   const raining = weather === 'rain';
   const pathname = usePathname();
   // 동굴 안: 숲 그림은 쉬고, 숲소리는 아주 작게(장작불 소리가 이어 받음), 비 소리는 멀어짐
@@ -82,8 +82,9 @@ function ForestShell() {
   };
   // 입구에 있는 동안 숲 메뉴는 숨겨 두고, 도착한 뒤에도 숨긴 채로 시작 (화면을 누르면 나타남)
   useEffect(() => {
-    if (atGate) hideUi();
-  }, [atGate, hideUi]);
+    setUiSuppressed(atGate || gate === 'pending');
+    if (atGate || gate === 'pending') hideUi();
+  }, [atGate, gate, hideUi, setUiSuppressed]);
 
   // 문으로 들어올 때는 숲소리가 문이 열리는 동안 더 천천히(5초) 다가옴
   const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, playSettings, atGate ? 5000 : 2500, forestHold, caveRamp ? 3000 : 300);
@@ -239,6 +240,7 @@ function ForestShell() {
           onRequestOpen={soundPrefReady && !needsSoundPrompt ? () => openGate(soundOn) : undefined}
           onDone={() => {
             setGateSeen(true);
+            setUiSuppressed(false);
             setGate('off');
             // 숲에 도착하면 할 수 있는 것(숨 고르기·숲에 머물기·동굴 가기)을 잠깐 보여 줌
             setTimeout(wakeUi, 400);
