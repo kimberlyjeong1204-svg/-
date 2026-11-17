@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated } from 'react-native';
-import { KEYS, isOneOf, usePersistentState } from '../../lib/storage';
+import { KEYS, isBoolean, isOneOf, usePersistentState } from '../../lib/storage';
 import { FOREST_MOTION } from './ui';
 import type { SessionPhase } from '../../lib/useSession';
 import type { SoundKey } from '../../audio/sounds';
@@ -26,6 +26,9 @@ type ForestSpaceValue = {
   soundPrefReady: boolean;
   /** 숨 고르기에서 「내 음악과 함께」를 고른 동안 숲소리를 잠시 쉬게 함 (사용자의 켜짐 선택은 그대로) */
   forestHold: boolean;
+  /** 「화면을 꺼도 계속 듣기」(숲·동굴 공통, 기기에 저장) */
+  keepAudio: boolean;
+  setKeepAudio: (on: boolean) => void;
   /** 숲 거닐기의 걷는 시간(밤·새벽). 숲 기본 소리(귀뚜라미)를 맞춤. 거닐기 밖이면 null */
   walkMood: 'night' | 'dawn' | null;
   setWalkMood: (m: 'night' | 'dawn' | null) => void;
@@ -91,6 +94,7 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
   );
   const needsSoundPrompt = prefReady && !pref.prompted;
   const [forestHold, setForestHold] = useState(false);
+  const [keepAudio, setKeepAudio] = usePersistentState<boolean>(KEYS.keepAudio, false, isBoolean);
   const [walkMood, setWalkMood] = useState<'night' | 'dawn' | null>(null);
   const [breatheAudio, setBreatheAudio] = useState<BreatheAudio>(NO_BREATHE_AUDIO);
   const [weather, setWeather] = usePersistentState<ForestWeather>(KEYS.forestWeather, 'clear', isOneOf(FOREST_WEATHERS));
@@ -163,6 +167,8 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
         soundPrefReady: prefReady,
         forestHold,
         setForestHold,
+        keepAudio,
+        setKeepAudio,
         walkMood,
         setWalkMood,
         breatheAudio,

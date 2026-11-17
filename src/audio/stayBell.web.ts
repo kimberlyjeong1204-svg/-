@@ -1,4 +1,4 @@
-import { getContext } from './webAudio';
+import { getContext, audioOut } from './webAudio';
 
 /**
  * 「쉬었다 갈게요」가 끝날 때 한 번 울리는 작고 부드러운 종소리 (웹)
@@ -11,7 +11,7 @@ export function stayBell() {
   const t = c.currentTime + 0.03;
   const out = c.createGain();
   out.gain.value = 0.22;
-  out.connect(c.destination);
+  out.connect(audioOut(c));
   // 맑은 종: 기음 660Hz, 비정수 배음(종 특유의 울림)
   const partials: [number, number, number][] = [
     [1, 1, 3.2],

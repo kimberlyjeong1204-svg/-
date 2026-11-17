@@ -15,8 +15,10 @@ import type { ForestWeather } from '../components/forest/forestScenes';
  * - 비 종류가 바뀔 때만 2초 겹쳐 넘기고, 비는 항상 하나만 들림
  * - 다른 앱 음악이 나오거나(앱) 다른 앱으로 전환하면 잠시 멈춤
  */
-export function useForestRain(weather: ForestWeather, soundOn: boolean, breathe: BreatheAudio, yielded: boolean) {
-  const [appActive, setAppActive] = useState(AppState.currentState !== 'background');
+export function useForestRain(weather: ForestWeather, soundOn: boolean, breathe: BreatheAudio, yielded: boolean, keepPlaying = false) {
+  const [appActiveRaw, setAppActive] = useState(AppState.currentState !== 'background');
+  // 「화면을 꺼도 계속 듣기」: 다른 앱·화면 잠금에도 비가 멈추지 않음
+  const appActive = keepPlaying || appActiveRaw;
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
       if (s === 'background') setAppActive(false);

@@ -1,5 +1,5 @@
 import { Asset } from 'expo-asset';
-import { getContext, loadBuffer, setAmbientSession } from './webAudio';
+import { getContext, loadBuffer, setAmbientSession, audioOut } from './webAudio';
 
 /**
  * 짧은 효과음 한 번 재생 (웹). 숲 소리와 같은 오디오(Web Audio)로 내보내므로
@@ -21,7 +21,7 @@ export function playOnce(source: number, volume = 1) {
       src.buffer = buffer;
       const g = c.createGain();
       g.gain.value = Math.max(0, Math.min(1, volume));
-      src.connect(g).connect(c.destination);
+      src.connect(g).connect(audioOut(c));
       src.onended = () => {
         src.disconnect();
         g.disconnect();

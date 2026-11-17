@@ -1,5 +1,5 @@
 import { Asset } from 'expo-asset';
-import { getContext, loadBuffer } from './webAudio';
+import { getContext, loadBuffer, audioOut } from './webAudio';
 import { MAX_VOICES, WINDCHIME_TAPS } from './windchimeSounds';
 
 /**
@@ -55,7 +55,7 @@ export function chimeHit(piece: number, strength: number, pan = 0) {
     out = p;
   }
   src.connect(g);
-  out.connect(c.destination);
+  out.connect(audioOut(c));
   voices += 1;
   src.onended = () => {
     voices -= 1;

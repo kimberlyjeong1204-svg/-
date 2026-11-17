@@ -20,8 +20,10 @@ export type ForestSoundStatus = 'off' | 'starting' | 'on' | 'blocked' | 'held';
 /**
  * @param hold true면 소리를 켠 상태는 유지한 채 잠시 쉼 (숨 고르기 「내 음악과 함께」). 상태는 'held'
  */
-export function useForestAmbience(soundOn: boolean, settings: ForestSoundSettings, fadeInMs = 2500, hold = false, volumeRampMs = 300) {
-  const [appActive, setAppActive] = useState(AppState.currentState !== 'background');
+export function useForestAmbience(soundOn: boolean, settings: ForestSoundSettings, fadeInMs = 2500, hold = false, volumeRampMs = 300, keepPlaying = false) {
+  const [appActiveRaw, setAppActive] = useState(AppState.currentState !== 'background');
+  // 「화면을 꺼도 계속 듣기」: 다른 앱·화면 잠금에도 멈추지 않음
+  const appActive = keepPlaying || appActiveRaw;
   const [yielded, setYielded] = useState(false);
   // 소리가 나야 하는데 어떤 이유로(화면 전환·아이폰 오디오 중단 등) 멈춰 있으면 다시 켜기 위한 신호
   const [heal, setHeal] = useState(0);
