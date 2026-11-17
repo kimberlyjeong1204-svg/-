@@ -15,8 +15,11 @@ import { addOtherAudioListener, isOtherAudioPlaying } from '../../modules/other-
  * - 아이폰 무음 스위치는 우회하지 않습니다(웹: ambient 오디오).
  * - 상태(status)는 실제로 소리가 나는지 확인해서 알려 줍니다. 브라우저가 재생을 막으면 'blocked'.
  */
-export type ForestSoundStatus = 'off' | 'starting' | 'on' | 'blocked';
-export function useForestAmbience(soundOn: boolean, settings: ForestSoundSettings, fadeInMs = 2500) {
+export type ForestSoundStatus = 'off' | 'starting' | 'on' | 'blocked' | 'held';
+/**
+ * @param hold true면 소리를 켠 상태는 유지한 채 잠시 쉼 (숨 고르기 「내 음악과 함께」). 상태는 'held'
+ */
+export function useForestAmbience(soundOn: boolean, settings: ForestSoundSettings, fadeInMs = 2500, hold = false) {
   const [appActive, setAppActive] = useState(AppState.currentState !== 'background');
   const [yielded, setYielded] = useState(false);
 
@@ -48,7 +51,7 @@ export function useForestAmbience(soundOn: boolean, settings: ForestSoundSetting
       if (!wanted) {
         // 소리 끄기·음소거: 천천히 줄이며 멈춤 (다시 켜면 이어서)
         p.pause(800);
-      } else if (!appActive || yielded) {
+      } else if (!appActive || yielded || hold) {
         p.pause(appActive ? 1200 : 0);
       } else if (p.currentKey !== key) {
         p.setVolume(volume, 1);
@@ -58,7 +61,7 @@ export function useForestAmbience(soundOn: boolean, settings: ForestSoundSetting
         if (!p.isPlaying) p.resume(Math.min(fadeInMs, 1500));
       }
     }
-  }, [soundOn, settings, appActive, yielded, fadeInMs]);
+  }, [soundOn, settings, appActive, yielded, fadeInMs, hold]);
 
   useEffect(
     () => () => {
@@ -75,7 +78,8 @@ export function useForestAmbience(soundOn: boolean, settings: ForestSoundSetting
     const check = () => {
       const wantedKeys = FOREST_TRACK_ORDER.filter((k) => !settings.muted[k] && settings.volume[k] > 0);
       let next: ForestSoundStatus;
-      if (!soundOn || yielded || !appActive) next = 'off';
+      if (soundOn && hold) next = 'held';
+      else if (!soundOn || yielded || !appActive) next = 'off';
       else if (wantedKeys.length === 0) next = 'on';
       else if (wantedKeys.some((k) => forestPlayers[k].playbackBlocked)) next = 'blocked';
       else if (wantedKeys.some((k) => forestPlayers[k].isSounding)) next = 'on';
@@ -86,7 +90,7 @@ export function useForestAmbience(soundOn: boolean, settings: ForestSoundSetting
     if (!soundOn) return;
     const id = setInterval(check, 400);
     return () => clearInterval(id);
-  }, [soundOn, settings, yielded, appActive]);
+  }, [soundOn, settings, yielded, appActive, hold]);
 
   /** 브라우저가 재생을 막았을 때: 사용자가 누른 순간에 다시 재생 */
   const retry = useCallback(() => {

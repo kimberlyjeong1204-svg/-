@@ -33,7 +33,7 @@ export default function ForestLayout() {
 }
 
 function ForestShell() {
-  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi } = useForestSpace();
+  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold } = useForestSpace();
   const reduceMotion = useReduceMotion();
   const [settings, setSettings] = useForestSoundSettings();
 
@@ -61,10 +61,12 @@ function ForestShell() {
   }, [atGate, hideUi]);
 
   // 문으로 들어올 때는 숲소리가 문이 열리는 동안 더 천천히(5초) 다가옴
-  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, settings, atGate ? 5000 : 2500);
+  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, settings, atGate ? 5000 : 2500, forestHold);
   // 「켜짐」은 실제로 소리가 나는 것이 확인됐을 때만 보여 줍니다.
   const audible = status === 'on';
   const blocked = status === 'blocked';
+  // 「내 음악과 함께」로 잠시 쉬는 중: 사용자가 끈 것이 아니므로 「켜기」 버튼을 고정하지 않음
+  const held = status === 'held';
   const pathname = usePathname();
   const atForestHome = pathname === '/forest';
 
@@ -112,7 +114,7 @@ function ForestShell() {
    * - 막힘(Safari 재생 차단): 「눌러서 숲소리 켜기」 (사라지지 않음, 누르는 순간 다시 재생)
    */
   const soundLabel = blocked ? '눌러서 숲소리 켜기' : status === 'starting' ? '켜는 중' : '숲소리 켜기';
-  const soundPinned = !audible; // 켜짐이 아니면 늘 보임
+  const soundPinned = !audible && !held; // 켜짐(또는 잠시 쉼)이 아니면 늘 보임
   // 막 켜졌을 때: 버튼이 갑자기 사라지지 않도록 메뉴를 잠깐 보였다가 함께 천천히 숨김
   useEffect(() => {
     if (audible && !atGate) wakeUi();
@@ -163,10 +165,10 @@ function ForestShell() {
                 accessibilityHint={blocked ? 'Safari가 소리를 멈췄어요. 누르면 다시 켜요.' : audible ? '누르면 숲소리를 꺼요' : undefined}
                 accessibilityState={{ checked: audible }}
                 aria-checked={audible}
-                style={({ pressed }) => [audible ? styles.soundCompact : styles.soundPill, blocked && styles.soundPillWarn, pressed && styles.pressed]}
+                style={({ pressed }) => [audible || held ? styles.soundCompact : styles.soundPill, blocked && styles.soundPillWarn, pressed && styles.pressed]}
               >
                 {audible ? <SoundOnIcon size={20} color={FOREST_UI.ink} /> : <SoundOffIcon size={20} color={FOREST_UI.ink} />}
-                {!audible && <Text style={styles.soundText}>{soundLabel}</Text>}
+                {!audible && !held && <Text style={styles.soundText}>{soundLabel}</Text>}
               </Pressable>
             </Animated.View>
             {/* 음량 세부 조절은 소리가 켜져 있을 때만, 다른 메뉴와 함께 숨음 */}

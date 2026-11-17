@@ -140,6 +140,8 @@ export class WebAmbiencePlayer {
   }
 
   resume(fadeInMs = 1000) {
+    // 줄어들며 멈추는 중이었다면 그 멈춤을 취소 (빠르게 다시 고른 경우 소리가 끊기지 않게)
+    this.generation += 1;
     const voices = this.voices;
     const track = this.track;
     if (!voices || !track) return;
@@ -344,6 +346,8 @@ function seek(el: HTMLAudioElement, seconds: number) {
 }
 
 export const ambience = new WebAmbiencePlayer();
+/** 쉬는 중에 비 종류를 바꿀 때 겹쳐 넘기기 위한 두 번째 재생기 (한 번에 하나만 들림) */
+export const ambienceAlt = new WebAmbiencePlayer();
 
 /**
  * 숲 소리처럼 여러 트랙을 동시에 쓸 때 새 재생기를 만듭니다 (네이티브와 같은 이름).

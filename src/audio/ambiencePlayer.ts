@@ -138,6 +138,8 @@ export class AmbiencePlayer {
 
   /** 일시정지했던 소리를 다시 천천히 키움 */
   resume(fadeInMs = 1000) {
+    // 줄어들며 멈추는 중이었다면 그 멈춤을 취소 (빠르게 다시 고른 경우 소리가 끊기지 않게)
+    this.generation += 1;
     if (!this.voices) return;
     this.paused = false;
     this.crossfading = false;
@@ -346,3 +348,5 @@ async function safeSeek(player: AudioPlayer, seconds: number) {
 }
 
 export const ambience = new AmbiencePlayer();
+/** 쉬는 중에 비 종류를 바꿀 때 겹쳐 넘기기 위한 두 번째 재생기 (한 번에 하나만 들림) */
+export const ambienceAlt = new AmbiencePlayer();

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { ambience } from './ambiencePlayer';
+import { ambience, ambienceAlt } from './ambiencePlayer';
 import { SOUND_KEYS, isAmbience, type SoundKey } from './sounds';
 import { addOtherAudioListener, isOtherAudioPlaying } from '../../modules/other-audio';
 import { KEYS, isOneOf, usePersistentState } from '../lib/storage';
@@ -22,10 +22,15 @@ export function useSoundChoice() {
  *   휴식 중에 음악이 멈추면 빗소리가 다시 천천히 들어옵니다.
  *   휴식 중에 사용자가 직접 빗소리를 다시 고르면 그 선택을 따릅니다.
  * - 다른 앱으로 전환하면 빗소리는 잠시 멈추고, 돌아오면 이어서 재생합니다. 타이머는 계속 흐릅니다.
+ * - 쉬는 중에 비 종류를 바꾸면 두 재생기로 2초 동안 겹쳐 넘깁니다(끊김·중복 없음, 들리는 비는 항상 하나).
+ *   이 두 재생기가 앱의 「비 소리 채널」입니다. Rain Mode(Phase 3)도 같은 채널을 써서 비가 두 번 나지 않게 합니다.
  *
  * @returns yieldedToMusic: 다른 앱 음악 때문에 빗소리를 꺼 둔 상태인지 (화면 안내용)
  */
+const RAIN_PLAYERS = [ambience, ambienceAlt] as const;
+
 export function useAmbience(phase: SessionPhase, sound: SoundKey) {
+  const current = useRef(0);
   const [yielded, setYielded] = useState(false);
   const [appActive, setAppActive] = useState(AppState.currentState !== 'background');
   const prevPhase = useRef<SessionPhase>(phase);
@@ -73,23 +78,36 @@ export function useAmbience(phase: SessionPhase, sound: SoundKey) {
     }
     if (yieldNow !== yielded) setYielded(yieldNow);
 
+    const player = RAIN_PLAYERS[current.current];
     if (!isAmbience(sound) || phase === 'idle' || phase === 'done') {
-      ambience.fadeOutAndStop(phase === 'done' ? 3000 : 800);
+      for (const p of RAIN_PLAYERS) p.fadeOutAndStop(phase === 'done' ? 3000 : 800);
       return;
     }
     if (phase === 'paused' || yieldNow || !appActive) {
-      ambience.pause(!appActive ? 0 : yieldNow ? 1200 : 500);
+      player.pause(!appActive ? 0 : yieldNow ? 1200 : 500);
       return;
     }
-    if (ambience.currentKey === sound) {
-      if (!ambience.isPlaying) ambience.resume(1200);
+    if (player.currentKey === sound) {
+      if (!player.isPlaying) player.resume(1200);
+    } else if (player.currentKey === 'none') {
+      void player.start(sound);
     } else {
-      void ambience.start(sound);
+      // 다른 비로 바꿈: 지금 비는 천천히 줄이고, 다른 재생기로 새 비를 천천히 키움
+      player.fadeOutAndStop(2000);
+      current.current = 1 - current.current;
+      const next = RAIN_PLAYERS[current.current];
+      if (next.currentKey === sound && next.isPlaying) return;
+      void next.start(sound);
     }
     // yielded는 위에서 계산해 반영하므로 의존성에 포함합니다.
   }, [phase, sound, yielded, appActive, inSession]);
 
-  useEffect(() => () => ambience.fadeOutAndStop(1500), []);
+  useEffect(
+    () => () => {
+      for (const p of RAIN_PLAYERS) p.fadeOutAndStop(1500);
+    },
+    [],
+  );
 
   return { yieldedToMusic: yielded && isAmbience(sound) && inSession };
 }

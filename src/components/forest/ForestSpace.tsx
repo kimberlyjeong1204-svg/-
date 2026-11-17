@@ -20,6 +20,9 @@ type ForestSpaceValue = {
   needsSoundPrompt: boolean;
   /** 저장된 소리 선택을 읽었는지 */
   soundPrefReady: boolean;
+  /** 숨 고르기에서 「내 음악과 함께」를 고른 동안 숲소리를 잠시 쉬게 함 (사용자의 켜짐 선택은 그대로) */
+  forestHold: boolean;
+  setForestHold: (hold: boolean) => void;
   weather: ForestWeather;
   setWeather: (w: ForestWeather) => void;
   uiOpacity: Animated.Value;
@@ -57,6 +60,7 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
     [setPref],
   );
   const needsSoundPrompt = prefReady && !pref.prompted;
+  const [forestHold, setForestHold] = useState(false);
   const [weather, setWeather] = usePersistentState<ForestWeather>(KEYS.forestWeather, 'clear', isOneOf(FOREST_WEATHERS));
   const uiOpacity = useRef(new Animated.Value(1)).current;
   const [autoHide, setAutoHide] = useState(true);
@@ -95,6 +99,8 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
         setSoundOn,
         needsSoundPrompt,
         soundPrefReady: prefReady,
+        forestHold,
+        setForestHold,
         weather,
         setWeather,
         uiOpacity,
