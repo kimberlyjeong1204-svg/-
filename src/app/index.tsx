@@ -18,7 +18,7 @@ export default function Home() {
       <HomeBackdrop />
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.topBar}>
-          <Pressable onPress={() => router.push('/settings')} accessibilityRole="button" accessibilityLabel="알림 설정" style={({ pressed }) => [styles.gear, pressed && styles.pressed]}>
+          <Pressable onPress={() => router.push('/settings')} accessibilityRole="button" accessibilityLabel="설정" style={({ pressed }) => [styles.gear, pressed && styles.pressed]}>
             <GearIcon />
           </Pressable>
         </View>

@@ -16,7 +16,7 @@ import { addOtherAudioListener, isOtherAudioPlaying } from '../../modules/other-
  * - 상태(status)는 실제로 소리가 나는지 확인해서 알려 줍니다. 브라우저가 재생을 막으면 'blocked'.
  */
 export type ForestSoundStatus = 'off' | 'starting' | 'on' | 'blocked';
-export function useForestAmbience(soundOn: boolean, settings: ForestSoundSettings) {
+export function useForestAmbience(soundOn: boolean, settings: ForestSoundSettings, fadeInMs = 2500) {
   const [appActive, setAppActive] = useState(AppState.currentState !== 'background');
   const [yielded, setYielded] = useState(false);
 
@@ -52,13 +52,13 @@ export function useForestAmbience(soundOn: boolean, settings: ForestSoundSetting
         p.pause(appActive ? 1200 : 0);
       } else if (p.currentKey !== key) {
         p.setVolume(volume, 1);
-        void p.playTrack(FOREST_TRACKS[key], 2500);
+        void p.playTrack(FOREST_TRACKS[key], fadeInMs);
       } else {
         p.setVolume(volume, 300);
-        if (!p.isPlaying) p.resume(1500);
+        if (!p.isPlaying) p.resume(Math.min(fadeInMs, 1500));
       }
     }
-  }, [soundOn, settings, appActive, yielded]);
+  }, [soundOn, settings, appActive, yielded, fadeInMs]);
 
   useEffect(
     () => () => {

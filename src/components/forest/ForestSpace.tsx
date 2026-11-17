@@ -18,6 +18,8 @@ type ForestSpaceValue = {
   /** 소리 켜기/끄기 (선택은 기기에 저장되어 다음 방문에도 이어짐) */
   setSoundOn: (on: boolean) => void;
   needsSoundPrompt: boolean;
+  /** 저장된 소리 선택을 읽었는지 */
+  soundPrefReady: boolean;
   weather: ForestWeather;
   setWeather: (w: ForestWeather) => void;
   uiOpacity: Animated.Value;
@@ -25,6 +27,8 @@ type ForestSpaceValue = {
   uiHidden: boolean;
   /** 메뉴를 다시 보이게 하고, 옅어지는 시간을 다시 셈 */
   wakeUi: () => void;
+  /** 메뉴를 바로 숨김 (숲 입구 연출 중·숲에 막 도착했을 때) */
+  hideUi: () => void;
   /** 활동 중처럼 메뉴를 계속 보이게 하거나(false) 다시 자동으로 옅어지게(true) */
   setAutoHide: (on: boolean) => void;
 };
@@ -70,6 +74,12 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
     }, HIDE_AFTER_MS);
   }, [autoHide, uiOpacity]);
 
+  const hideUi = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    uiOpacity.setValue(DIM_OPACITY);
+    setUiHidden(true);
+  }, [uiOpacity]);
+
   useEffect(() => {
     wakeUi();
     return () => {
@@ -84,11 +94,13 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
         soundOn,
         setSoundOn,
         needsSoundPrompt,
+        soundPrefReady: prefReady,
         weather,
         setWeather,
         uiOpacity,
         uiHidden,
         wakeUi,
+        hideUi,
         setAutoHide,
       }}
     >

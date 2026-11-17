@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, Stack, ThemeProvider, router, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,6 +6,8 @@ import { ForestScene } from '../../components/forest/ForestScene';
 import { ForestSpaceProvider, useForestSpace } from '../../components/forest/ForestSpace';
 import { ForestSoundButton } from '../../components/forest/ForestSoundButton';
 import { SoundPrompt } from '../../components/forest/SoundPrompt';
+import { ForestGate } from '../../components/forest/ForestGate';
+import { KEYS, isBoolean, usePersistentState } from '../../lib/storage';
 import { BackIcon, SoundOffIcon, SoundOnIcon } from '../../components/icons';
 import { useReduceMotion } from '../../components/BreathCircle';
 import { useForestAmbience } from '../../audio/useForestAmbience';
@@ -29,10 +31,24 @@ export default function ForestLayout() {
 }
 
 function ForestShell() {
-  const { soundOn, setSoundOn, needsSoundPrompt, uiOpacity, uiHidden, wakeUi } = useForestSpace();
+  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi } = useForestSpace();
   const reduceMotion = useReduceMotion();
   const [settings, setSettings] = useForestSoundSettings();
-  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, settings);
+
+  // 숲 입구: 처음 방문(또는 설정의 「숲 입구 다시 보기」) 때만. 다시 올 때는 숲으로 바로
+  const [gateSeen, setGateSeen, gateReady] = usePersistentState<boolean>(KEYS.forestGateSeen, false, isBoolean);
+  const [gate, setGate] = useState<'pending' | 'show' | 'opening' | 'off'>('pending');
+  useEffect(() => {
+    if (gate === 'pending' && gateReady) setGate(gateSeen ? 'off' : 'show');
+  }, [gate, gateReady, gateSeen]);
+  const atGate = gate === 'show' || gate === 'opening';
+  // 입구에 있는 동안 숲 메뉴는 숨겨 두고, 도착한 뒤에도 숨긴 채로 시작 (화면을 누르면 나타남)
+  useEffect(() => {
+    if (atGate) hideUi();
+  }, [atGate, hideUi]);
+
+  // 문으로 들어올 때는 숲소리가 문이 열리는 동안 더 천천히(5초) 다가옴
+  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, settings, atGate ? 5000 : 2500);
   // 「켜짐」은 실제로 소리가 나는 것이 확인됐을 때만 보여 줍니다.
   const audible = status === 'on';
   const blocked = status === 'blocked';
@@ -50,6 +66,8 @@ function ForestShell() {
   };
   const changeSound = (on: boolean) => {
     setSoundOn(on);
+    // 문 앞에서 소리를 고르면 그대로 문이 열림
+    if (gate === 'show') setGate('opening');
     if (on && !hintShown.current) {
       hintShown.current = true;
       showHint('소리가 들리지 않으면 무음 모드를 확인해 주세요.');
@@ -73,7 +91,7 @@ function ForestShell() {
     <View
       style={styles.root}
       onStartShouldSetResponderCapture={() => {
-        wakeUi();
+        if (!atGate) wakeUi();
         return false;
       }}
     >
@@ -122,7 +140,21 @@ function ForestShell() {
         </Animated.View>
       </SafeAreaView>
 
-      {blocked && !needsSoundPrompt ? (
+      {gate === 'pending' && <View style={[StyleSheet.absoluteFill, styles.cover]} />}
+      {atGate && (
+        <ForestGate
+          opening={gate === 'opening'}
+          reduceMotion={reduceMotion}
+          showTapHint={soundPrefReady && !needsSoundPrompt}
+          onRequestOpen={soundPrefReady && !needsSoundPrompt ? () => setGate('opening') : undefined}
+          onDone={() => {
+            setGateSeen(true);
+            setGate('off');
+          }}
+        />
+      )}
+
+      {atGate ? null : blocked && !needsSoundPrompt ? (
         // 다시 방문했을 때 브라우저가 소리를 막은 경우: 눌러서 다시 켜기
         <View style={styles.hintWrap} pointerEvents="box-none">
           <Pressable onPress={retry} accessibilityRole="button" style={({ pressed }) => [styles.hintBtn, pressed && styles.pressed]}>
@@ -152,6 +184,7 @@ const FOREST_NAV_THEME = {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: FOREST_UI.ground },
+  cover: { backgroundColor: FOREST_UI.ground },
   topWrap: { position: 'absolute', top: 0, left: 0, right: 0 },
   topBar: { height: 56, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   right: { flexDirection: 'row', alignItems: 'center', gap: 6 },
