@@ -29,7 +29,9 @@ export default function Home() {
         <View style={styles.topBar}>
           {/* 숲 선물하기: 작고 은은하게 (링크만 나눔, 로그인·기록 없음) */}
           <Pressable onPress={gift} accessibilityRole="button" accessibilityLabel="숲 선물하기. 이 숲으로 오는 링크를 보내요" style={({ pressed }) => [styles.giftBtn, pressed && styles.pressed]}>
-            <Text style={styles.giftText}>숲 선물하기</Text>
+            <View style={styles.giftPill}>
+              <Text style={styles.giftText}>숲 선물하기</Text>
+            </View>
           </Pressable>
           <Pressable onPress={() => router.push('/settings')} accessibilityRole="button" accessibilityLabel="설정" style={({ pressed }) => [styles.gear, pressed && styles.pressed]}>
             <GearIcon color={FOREST_UI.ink} />
@@ -71,8 +73,10 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: FOREST_UI.ground },
   safe: { flex: 1 },
   topBar: { height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
-  giftBtn: { minHeight: HIT, paddingHorizontal: 10, justifyContent: 'center' },
-  giftText: { ...FOREST_TEXT.caption, fontSize: 13, color: FOREST_UI.inkSoft, opacity: 0.85 },
+  // 누르는 영역은 설정 아이콘과 같은 높이(HIT)로, 그 가운데에 작은 알약 모양
+  giftBtn: { height: HIT, paddingHorizontal: 4, justifyContent: 'center', alignItems: 'center' },
+  giftPill: { borderRadius: radius.pill, borderWidth: 1, borderColor: 'rgba(237, 230, 211, 0.35)', backgroundColor: 'transparent', paddingHorizontal: 12, paddingVertical: 5 },
+  giftText: { ...FOREST_TEXT.caption, fontSize: 13, color: FOREST_UI.ink },
   gear: { width: HIT, height: HIT, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.5 },
   titleBlock: { marginTop: '10%', alignItems: 'center', gap: 10 },
