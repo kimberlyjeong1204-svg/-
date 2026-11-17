@@ -12,6 +12,8 @@ import { CAVE_SPOT, FOREST, FOREST_IMAGE, coverView, forest, forestImages } from
  * - 비(Rain Mode): 8초에 걸쳐 바뀜. 깊이가 다른 빗줄기, 잎·바닥에 튀는 빗방울, 젖은 느낌(조금 어둡고
  *   채도 낮게, 잎에 은은한 반짝임), 옅은 안개, 반딧불이·별은 줄어듦. 원본 그림은 그대로 두고 위에 효과만 그림.
  *   동작 줄이기이면 빗줄기 없이 젖은 느낌과 안개만.
+ * - WebGL을 쓸 수 없거나(데스크톱 Chrome 하드웨어 가속 꺼짐·그래픽 카드 차단 등) 도중에 끊기면,
+ *   같은 숲 그림을 2D로 그려 단색 화면이 남지 않게 함(잎 일렁임·젖은 느낌만 빠지고 별·반딧불이·비·동굴 빛은 그대로)
  */
 
 type Props = {
@@ -103,9 +105,26 @@ export function ForestScene({ reduceMotion, rain = false, paused = false, regist
     const fxCanvas = fxRef.current;
     const box = boxRef.current;
     if (!glCanvas || !fxCanvas || !box) return;
-    const gl = glCanvas.getContext('webgl', { premultipliedAlpha: false, antialias: false });
+    let gl: WebGLRenderingContext | null = null;
+    try {
+      gl = glCanvas.getContext('webgl', { premultipliedAlpha: false, antialias: false });
+    } catch {
+      gl = null;
+    }
     const fx = fxCanvas.getContext('2d');
-    if (!gl || !fx) return;
+    if (!fx) return;
+    // WebGL이 없으면 숲 그림을 2D로 그림
+    let bgImg: HTMLImageElement | null = null;
+    let use2d = !gl;
+    const onLost = (e: Event) => {
+      e.preventDefault();
+      use2d = true;
+    };
+    glCanvas.addEventListener('webglcontextlost', onLost);
+    const draw2dBg = () => {
+      if (!bgImg) return;
+      fx.drawImage(bgImg, view.ox * FOREST_IMAGE.width, view.oy * FOREST_IMAGE.height, view.sx * FOREST_IMAGE.width, view.sy * FOREST_IMAGE.height, 0, 0, W, H);
+    };
 
     let W = 0, H = 0, view = coverView(1, 1), raf = 0, alive = true;
     // 만진 자리(그림 좌표)와 시각
@@ -136,26 +155,26 @@ export function ForestScene({ reduceMotion, rain = false, paused = false, regist
       glCanvas.width = fxCanvas.width = W;
       glCanvas.height = fxCanvas.height = H;
       view = coverView(W, H);
-      gl.viewport(0, 0, W, H);
+      gl?.viewport(0, 0, W, H);
     };
     const toScreen = (u: number, v: number): [number, number] => [((u - view.ox) / view.sx) * W, ((v - view.oy) / view.sy) * H];
     const pxScale = () => W / (view.sx * FOREST_IMAGE.width);
 
     const shader = (type: number, src: string) => {
-      const s = gl.createShader(type)!;
-      gl.shaderSource(s, src);
-      gl.compileShader(s);
+      const s = gl!.createShader(type)!;
+      gl!.shaderSource(s, src);
+      gl!.compileShader(s);
       return s;
     };
     const texture = (img: HTMLImageElement, unit: number) => {
-      const tx = gl.createTexture();
-      gl.activeTexture(gl.TEXTURE0 + unit);
-      gl.bindTexture(gl.TEXTURE_2D, tx);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+      const tx = gl!.createTexture();
+      gl!.activeTexture(gl!.TEXTURE0 + unit);
+      gl!.bindTexture(gl!.TEXTURE_2D, tx);
+      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_S, gl!.CLAMP_TO_EDGE);
+      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_WRAP_T, gl!.CLAMP_TO_EDGE);
+      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MIN_FILTER, gl!.LINEAR);
+      gl!.texParameteri(gl!.TEXTURE_2D, gl!.TEXTURE_MAG_FILTER, gl!.LINEAR);
+      gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGB, gl!.RGB, gl!.UNSIGNED_BYTE, img);
     };
 
     const updateFly = (f: Fly, now: number, dt: number) => {
@@ -229,6 +248,7 @@ export function ForestScene({ reduceMotion, rain = false, paused = false, regist
     const drawFx = (now: number, dt: number) => {
       const reduce = reduceRef.current;
       fx.clearRect(0, 0, W, H);
+      if (use2d) draw2dBg();
       const s = pxScale();
       drawRain(dt, reduce);
       // 비가 오면 별·반딧불이는 줄어듦
@@ -294,6 +314,10 @@ export function ForestScene({ reduceMotion, rain = false, paused = false, regist
       const reduce = reduceRef.current;
       const t = reduce ? frozenT : now - t0;
       if (!reduce) frozenT = t;
+      if (use2d || !gl) {
+        drawFx(now, dt);
+        return;
+      }
       gl.uniform1f(uni.t, t);
       gl.uniform1f(uni.amp, reduce ? 0 : FOREST.leafSway);
       wetAmt += ((rainRef.current ? 1 : 0) - wetAmt) * Math.min(1, dt / 2.6); // 약 8초에 걸쳐 바뀜
@@ -319,6 +343,13 @@ export function ForestScene({ reduceMotion, rain = false, paused = false, regist
         loadImage(Asset.fromModule(forestImages.windMask).uri),
       ]);
       if (!alive) return;
+      bgImg = bg;
+      if (!gl || use2d) {
+        use2d = true;
+        layout();
+        raf = requestAnimationFrame(frame);
+        return;
+      }
       const prog = gl.createProgram()!;
       gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS));
       gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS));
@@ -336,6 +367,8 @@ export function ForestScene({ reduceMotion, rain = false, paused = false, regist
       gl.uniform1i(gl.getUniformLocation(prog, 'bg'), 0);
       gl.uniform1i(gl.getUniformLocation(prog, 'mask'), 1);
       gl.uniform2f(uni.img, FOREST_IMAGE.width, FOREST_IMAGE.height);
+      // 셰이더를 못 만들면(드문 기기) 2D로
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) use2d = true;
       layout();
       raf = requestAnimationFrame(frame);
     })().catch(() => {
@@ -371,7 +404,8 @@ export function ForestScene({ reduceMotion, rain = false, paused = false, regist
       ro.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
       registerTouch?.(null);
-      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      glCanvas.removeEventListener('webglcontextlost', onLost);
+      gl?.getExtension('WEBGL_lose_context')?.loseContext();
     };
   }, []);
 
