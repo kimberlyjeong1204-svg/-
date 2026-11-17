@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
+import { FOREST_MOTION, ForestButton } from './ui';
 import { FOREST_UI } from './forestUi';
-import { colors, radius, shadow, type } from '../../theme';
+import { radius, shadow, type } from '../../theme';
 
 /**
  * 첫 방문 소리 안내창
@@ -12,7 +13,7 @@ import { colors, radius, shadow, type } from '../../theme';
 export function SoundPrompt({ onChoose }: { onChoose: (soundOn: boolean) => void }) {
   const fade = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(fade, { toValue: 1, duration: 700, delay: 400, useNativeDriver: true }).start();
+    Animated.timing(fade, { toValue: 1, duration: FOREST_MOTION.appear, delay: 400, useNativeDriver: true }).start();
   }, [fade]);
 
   return (
@@ -22,20 +23,8 @@ export function SoundPrompt({ onChoose }: { onChoose: (soundOn: boolean) => void
           숲의 소리를 들어볼까요?
         </Text>
         <Text style={styles.body}>바람과 나뭇잎, 작은 자연의 소리가 함께해요.</Text>
-        <Pressable
-          onPress={() => onChoose(true)}
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-        >
-          <Text style={styles.primaryText}>숲소리 켜고 들어가기</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => onChoose(false)}
-          accessibilityRole="button"
-          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-        >
-          <Text style={styles.secondaryText}>조용히 들어가기</Text>
-        </Pressable>
+        <ForestButton label="숲소리 켜고 들어가기" variant="primary" size="md" style={styles.stretch} onPress={() => onChoose(true)} />
+        <ForestButton label="조용히 들어가기" variant="quiet" size="md" style={styles.stretch} onPress={() => onChoose(false)} />
       </View>
     </Animated.View>
   );
@@ -63,16 +52,5 @@ const styles = StyleSheet.create({
   },
   title: { ...type.button, fontSize: 19, color: FOREST_UI.ink, textAlign: 'center' },
   body: { ...type.small, color: FOREST_UI.inkSoft, textAlign: 'center', marginBottom: 12 },
-  primary: {
-    alignSelf: 'stretch',
-    minHeight: 52,
-    borderRadius: radius.pill,
-    backgroundColor: colors.sageDeep,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryText: { ...type.button, fontSize: 16, color: colors.white },
-  secondary: { alignSelf: 'stretch', minHeight: 48, alignItems: 'center', justifyContent: 'center' },
-  secondaryText: { ...type.small, fontSize: 15, color: FOREST_UI.ink },
-  pressed: { opacity: 0.7 },
+  stretch: { alignSelf: 'stretch' },
 });

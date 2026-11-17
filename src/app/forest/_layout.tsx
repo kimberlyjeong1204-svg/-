@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, Stack, ThemeProvider, router, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { ForestScene } from '../../components/forest/ForestScene';
 import { ForestSpaceProvider, useForestSpace } from '../../components/forest/ForestSpace';
 import { ForestSoundButton } from '../../components/forest/ForestSoundButton';
 import { SoundPrompt } from '../../components/forest/SoundPrompt';
+import { FOREST_TEXT, ForestButton } from '../../components/forest/ui';
 import { ForestGate } from '../../components/forest/ForestGate';
 import { KEYS, isBoolean, usePersistentState } from '../../lib/storage';
 import { GATE_HINGE_SFX, GATE_HINGE_VOLUME } from '../../audio/sounds';
@@ -129,6 +131,7 @@ function ForestShell() {
         return false;
       }}
     >
+      <StatusBar style="light" />
       <ForestScene reduceMotion={reduceMotion} />
 
       {/* 숲 안의 화면들은 배경이 투명해야 뒤의 숲이 보입니다(기본 테마의 회색 배경을 끔) */}
@@ -158,18 +161,16 @@ function ForestShell() {
           </Animated.View>
           <View style={styles.right} pointerEvents="box-none">
             <Animated.View style={{ opacity: soundPinned ? 1 : uiOpacity }} pointerEvents={!soundPinned && uiHidden ? 'none' : 'box-none'}>
-              <Pressable
+              <ForestButton
                 onPress={onSoundPress}
-                accessibilityRole="switch"
+                checked={audible}
                 accessibilityLabel="숲 소리"
                 accessibilityHint={blocked ? 'Safari가 소리를 멈췄어요. 누르면 다시 켜요.' : audible ? '누르면 숲소리를 꺼요' : undefined}
-                accessibilityState={{ checked: audible }}
-                aria-checked={audible}
-                style={({ pressed }) => [audible || held ? styles.soundCompact : styles.soundPill, blocked && styles.soundPillWarn, pressed && styles.pressed]}
-              >
-                {audible ? <SoundOnIcon size={20} color={FOREST_UI.ink} /> : <SoundOffIcon size={20} color={FOREST_UI.ink} />}
-                {!audible && !held && <Text style={styles.soundText}>{soundLabel}</Text>}
-              </Pressable>
+                size={audible || held ? 'icon' : 'sm'}
+                variant={blocked ? 'warn' : 'glass'}
+                icon={audible ? <SoundOnIcon size={20} color={FOREST_UI.ink} /> : <SoundOffIcon size={20} color={FOREST_UI.ink} />}
+                label={audible || held ? undefined : soundLabel}
+              />
             </Animated.View>
             {/* 음량 세부 조절은 소리가 켜져 있을 때만, 다른 메뉴와 함께 숨음 */}
             {audible && (
@@ -200,7 +201,7 @@ function ForestShell() {
       {atGate ? null : blocked && !needsSoundPrompt ? (
         // Safari가 재생을 막은 경우: 위쪽 버튼을 누르면 다시 재생 (설명만 짧게)
         <View style={styles.blockedNoteWrap} pointerEvents="none">
-          <Text style={styles.blockedNote} accessibilityLiveRegion="polite">
+          <Text style={[FOREST_TEXT.caption, styles.blockedNote]} accessibilityLiveRegion="polite">
             Safari가 숲소리를 잠시 멈췄어요
           </Text>
         </View>
@@ -231,20 +232,8 @@ const styles = StyleSheet.create({
   topBar: { height: 56, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   right: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   iconBtn: { width: HIT, height: HIT, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  soundPill: {
-    minHeight: 40,
-    paddingHorizontal: 14,
-    borderRadius: radius.pill,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: FOREST_UI.glass,
-  },
-  soundPillWarn: { backgroundColor: 'rgba(10, 22, 24, 0.72)', borderWidth: 1, borderColor: 'rgba(237, 230, 211, 0.35)' },
-  soundCompact: { width: 40, height: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: FOREST_UI.glass },
   blockedNoteWrap: { position: 'absolute', top: 104, right: 16, left: 16, alignItems: 'flex-end' },
-  blockedNote: { ...type.caption, fontSize: 13, color: FOREST_UI.inkSoft, ...FOREST_UI.textShadow },
-  soundText: { ...type.small, fontSize: 14, color: FOREST_UI.ink },
+  blockedNote: { textAlign: 'right' },
   pressed: { opacity: 0.6 },
   hintWrap: { position: 'absolute', left: 0, right: 0, top: 120, alignItems: 'center', paddingHorizontal: 24 },
   hint: {

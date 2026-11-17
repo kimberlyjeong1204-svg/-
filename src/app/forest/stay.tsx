@@ -5,10 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForestSpace } from '../../components/forest/ForestSpace';
 import { FOREST_UI } from '../../components/forest/forestUi';
 import { FadeInText } from '../../components/FadeInText';
+import { FOREST_TEXT, ForestButton, ForestChoiceGroup } from '../../components/forest/ui';
 import { PauseIcon, PlayIcon } from '../../components/icons';
 import { useStayTimer } from '../../lib/useStayTimer';
 import { formatTime } from '../../lib/useSession';
-import { HIT, radius, states, type } from '../../theme';
+import { HIT, type } from '../../theme';
 
 /**
  * 숲에 머물기
@@ -46,7 +47,7 @@ export default function ForestStay() {
       <View style={styles.topGap} />
       <View style={styles.spacer}>
         {timer.state === 'done' && (
-          <FadeInText style={styles.doneText} duration={1600}>
+          <FadeInText style={FOREST_TEXT.closing} duration={1600}>
             잠깐 머물렀어요.
           </FadeInText>
         )}
@@ -64,34 +65,21 @@ export default function ForestStay() {
               >
                 <Text style={styles.time}>{timeHidden ? '· · ·' : formatTime(timer.remainingSec)}</Text>
               </Pressable>
-              <Pressable
+              <ForestButton
+                size="icon"
                 onPress={timer.state === 'running' ? timer.pause : timer.resume}
-                accessibilityRole="button"
                 accessibilityLabel={timer.state === 'running' ? '타이머 잠시 멈춤' : '타이머 다시 시작'}
-                style={({ pressed }) => [styles.playBtn, pressed && { opacity: 0.6 }]}
-              >
-                {timer.state === 'running' ? <PauseIcon size={16} color={FOREST_UI.ink} /> : <PlayIcon size={16} color={FOREST_UI.ink} />}
-              </Pressable>
+                icon={timer.state === 'running' ? <PauseIcon size={16} color={FOREST_UI.ink} /> : <PlayIcon size={16} color={FOREST_UI.ink} />}
+              />
             </View>
           )}
-          <Text style={styles.label}>타이머</Text>
-          <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel="타이머">
-            {OPTIONS.map((o) => {
-              const on = o.value === timer.seconds;
-              return (
-                <Pressable
-                  key={o.label}
-                  onPress={() => timer.choose(o.value)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: on }}
-                  aria-checked={on}
-                  style={[styles.opt, on && styles.optOn]}
-                >
-                  <Text style={[styles.optText, on && styles.optTextOn]}>{o.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <ForestChoiceGroup
+            label="타이머"
+            align="center"
+            options={OPTIONS.map((o) => ({ value: o.value ?? 0, label: o.label }))}
+            value={timer.seconds ?? 0}
+            onChange={(v) => timer.choose(v === 0 ? null : v)}
+          />
         </Animated.View>
       )}
     </SafeAreaView>
@@ -102,16 +90,8 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
   topGap: { height: 56 },
   spacer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  doneText: { ...type.closing, color: FOREST_UI.ink, ...FOREST_UI.textShadow },
   bottom: { alignItems: 'center', gap: 12, paddingBottom: 36, paddingHorizontal: 16 },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   timeBtn: { minWidth: 110, minHeight: HIT, alignItems: 'center', justifyContent: 'center' },
   time: { ...type.timer, fontSize: 24, color: FOREST_UI.inkSoft, ...FOREST_UI.textShadow },
-  playBtn: { width: HIT, height: HIT, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: FOREST_UI.glass },
-  label: { ...type.small, color: FOREST_UI.inkSoft, ...FOREST_UI.textShadow },
-  options: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
-  opt: { minHeight: 40, minWidth: 56, paddingHorizontal: 14, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: FOREST_UI.glass },
-  optOn: { ...states.selected },
-  optText: { ...type.small, fontSize: 14, color: FOREST_UI.ink },
-  optTextOn: { ...states.selectedText },
 });

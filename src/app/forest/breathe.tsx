@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBreathAnimation, useReduceMotion } from '../../components/BreathCircle';
 import { FadeInText } from '../../components/FadeInText';
 import { BreathRing } from '../../components/forest/BreathRing';
 import { BreatheSettingsSheet } from '../../components/forest/BreatheSettingsSheet';
+import { FOREST_TEXT, ForestButton } from '../../components/forest/ui';
 import { useForestSpace } from '../../components/forest/ForestSpace';
 import { FOREST_UI } from '../../components/forest/forestUi';
 import { PauseIcon, PlayIcon } from '../../components/icons';
@@ -13,7 +14,7 @@ import { RHYTHMS, breathFrame, type RhythmKey } from '../../lib/breath';
 import { formatTime, useSession } from '../../lib/useSession';
 import { KEYS, isOneOf, usePersistentState } from '../../lib/storage';
 import { useAmbience, useSoundChoice } from '../../audio/useAmbience';
-import { HIT, radius, type } from '../../theme';
+import { HIT, type } from '../../theme';
 
 /**
  * 숲에서 숨 고르기 (B1: 작은 빛의 고리)
@@ -140,13 +141,13 @@ export default function ForestBreathe() {
         {/* 호흡 안내는 조작 버튼이 숨어도 계속 보임 */}
         <View style={styles.cueWrap} pointerEvents="none">
           {done ? (
-            <FadeInText style={styles.doneText} duration={1600}>
+            <FadeInText style={FOREST_TEXT.closing} duration={1600}>
               잠깐 쉬어갔어요.
             </FadeInText>
           ) : phase === 'idle' ? (
             <Text style={styles.idleCue}>{idleHint}</Text>
           ) : (
-            <FadeInText key={cue.key} style={styles.cue}>
+            <FadeInText key={cue.key} style={FOREST_TEXT.cue}>
               {cue.text}
             </FadeInText>
           )}
@@ -156,30 +157,23 @@ export default function ForestBreathe() {
       {!done && (
         <Animated.View style={[styles.bottom, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
           {(yieldedToMusic || (sound === 'myMusic' && active)) && (
-            <Text style={styles.note}>
+            <Text style={FOREST_TEXT.caption}>
               {yieldedToMusic ? '다른 앱 음악이 재생 중이라 빗소리는 꺼 두었어요.' : '내 음악과 함께하는 동안 숲소리는 잠시 쉬어요.'}
             </Text>
           )}
           <View style={styles.controls}>
-            <Pressable
+            <ForestButton
+              size="icon"
+              variant={phase === 'idle' ? 'strong' : 'glass'}
+              style={styles.play}
               onPress={session.toggle}
-              accessibilityRole="button"
               accessibilityLabel={phase === 'running' ? '잠시 멈춤' : phase === 'paused' ? '다시 시작' : '숨 고르기 시작'}
-              style={({ pressed }) => [styles.play, phase === 'idle' && styles.playStart, pressed && styles.pressed]}
-            >
-              {phase === 'running' ? <PauseIcon size={18} color={FOREST_UI.ink} /> : <PlayIcon size={20} color={FOREST_UI.ink} />}
-            </Pressable>
-            <Text style={styles.time} accessibilityLabel={`남은 시간 ${formatTime(session.remainingSec)}`}>
+              icon={phase === 'running' ? <PauseIcon size={18} color={FOREST_UI.ink} /> : <PlayIcon size={20} color={FOREST_UI.ink} />}
+            />
+            <Text style={[FOREST_TEXT.time, styles.time]} accessibilityLabel={`남은 시간 ${formatTime(session.remainingSec)}`}>
               {formatTime(session.remainingSec)}
             </Text>
-            <Pressable
-              onPress={openSettings}
-              accessibilityRole="button"
-              accessibilityLabel="숨 고르기 설정: 호흡 리듬, 시간, 소리"
-              style={({ pressed }) => [styles.settings, pressed && styles.pressed]}
-            >
-              <Text style={styles.settingsText}>설정</Text>
-            </Pressable>
+            <ForestButton label="설정" size="sm" onPress={openSettings} accessibilityLabel="숨 고르기 설정: 호흡 리듬, 시간, 소리" />
           </View>
         </Animated.View>
       )}
@@ -204,16 +198,9 @@ const styles = StyleSheet.create({
   topGap: { height: 56 },
   stage: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   cueWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  cue: { ...type.body, fontSize: 16, color: FOREST_UI.ink, textAlign: 'center', ...FOREST_UI.textShadow },
   idleCue: { ...type.small, color: FOREST_UI.inkSoft, textAlign: 'center', ...FOREST_UI.textShadow },
-  doneText: { ...type.closing, color: FOREST_UI.ink, ...FOREST_UI.textShadow },
   bottom: { alignItems: 'center', gap: 12, paddingBottom: 30, paddingHorizontal: 16 },
-  note: { ...type.caption, color: FOREST_UI.inkSoft, textAlign: 'center', ...FOREST_UI.textShadow },
   controls: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  play: { width: HIT, height: HIT, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: FOREST_UI.glass },
-  playStart: { backgroundColor: FOREST_UI.glassStrong },
-  time: { ...type.small, fontSize: 15, minWidth: 48, textAlign: 'center', color: FOREST_UI.inkSoft, ...FOREST_UI.textShadow, fontVariant: ['tabular-nums'] },
-  settings: { minHeight: HIT, paddingHorizontal: 16, borderRadius: radius.pill, justifyContent: 'center', backgroundColor: FOREST_UI.glass },
-  settingsText: { ...type.small, fontSize: 14, color: FOREST_UI.ink },
-  pressed: { opacity: 0.6 },
+  play: { width: HIT, height: HIT },
+  time: { minWidth: 48 },
 });

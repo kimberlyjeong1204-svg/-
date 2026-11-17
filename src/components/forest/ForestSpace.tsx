@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated } from 'react-native';
 import { KEYS, isOneOf, usePersistentState } from '../../lib/storage';
+import { FOREST_MOTION } from './ui';
 import { DEFAULT_SOUND_PREF, isSoundPref, type ForestSoundPref } from './soundPref';
 import { DEFAULT_FOREST_SCENE, FOREST_SCENES, FOREST_WEATHERS, type ForestSceneDef, type ForestWeather } from './forestScenes';
 
@@ -38,7 +39,7 @@ type ForestSpaceValue = {
 
 const Ctx = createContext<ForestSpaceValue | null>(null);
 
-const HIDE_AFTER_MS = 4000;
+const HIDE_AFTER_MS = FOREST_MOTION.hideAfter;
 const DIM_OPACITY = 0;
 
 export function ForestSpaceProvider({ children }: { children: ReactNode }) {
@@ -68,13 +69,13 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const wakeUi = useCallback(() => {
-    Animated.timing(uiOpacity, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    Animated.timing(uiOpacity, { toValue: 1, duration: FOREST_MOTION.uiIn, useNativeDriver: true }).start();
     setUiHidden(false);
     if (timer.current) clearTimeout(timer.current);
     if (!autoHide) return;
     timer.current = setTimeout(() => {
       setUiHidden(true);
-      Animated.timing(uiOpacity, { toValue: DIM_OPACITY, duration: 1600, useNativeDriver: true }).start();
+      Animated.timing(uiOpacity, { toValue: DIM_OPACITY, duration: FOREST_MOTION.uiOut, useNativeDriver: true }).start();
     }, HIDE_AFTER_MS);
   }, [autoHide, uiOpacity]);
 

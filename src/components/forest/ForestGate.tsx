@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, Ellipse, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { FOREST_UI } from './forestUi';
-import { HIT, radius, type } from '../../theme';
+import { FOREST_TEXT, ForestButton } from './ui';
 
 /**
  * 숲 입구 (처음 방문 때 한 번)
@@ -32,22 +31,28 @@ const seg = (t: number, a: number, b: number) => clamp((t - a) / (b - a));
 const easeInOutCubic = (u: number) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 const easeInOutQuad = (u: number) => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2);
 
-// 시간(문이 열리기 시작한 뒤 초) → 각 값. 처음에 살짝 걸렸다가(2°) 천천히, 묵직하게 열림
+/**
+ * 문은 처음부터 살짝 열려 있어(REST_DEG) 문틈으로 숲과 빛이 보입니다. 판자 면적이 줄어 답답하지 않게.
+ * 시간(문이 열리기 시작한 뒤 초) → 각도. 살짝 걸렸다가(2°) 천천히, 묵직하게 열림
+ */
+const REST_DEG = 40;
+const OPEN_DEG = 80;
 const doorDeg = (t: number) => {
   const nudge = Math.sin(Math.PI * seg(t, 0, 0.5)) * 2.2;
   const u = seg(t, 0.45, 3.1);
-  return nudge * (1 - u) + 78 * easeInOutQuad(u);
+  return REST_DEG + nudge * (1 - u) + (OPEN_DEG - REST_DEG) * easeInOutQuad(u);
 };
+const openness = (t: number) => (doorDeg(t) - REST_DEG) / (OPEN_DEG - REST_DEG);
 const push = (t: number) => easeInOutCubic(seg(t, 2.2, 5.6));
 const CURVES = {
   door: (t: number) => `${doorDeg(t).toFixed(2)}deg`,
   shade: (t: number) => 0.55 * Math.sin((doorDeg(t) * Math.PI) / 180),
-  glow: (t: number) => (0.15 + 0.85 * (doorDeg(t) / 78)) * (1 - seg(t, 4.8, 6.0)),
+  glow: (t: number) => (0.5 + 0.5 * openness(t)) * (1 - seg(t, 4.8, 6.0)),
   scale: (t: number) => 1 + 2.6 * push(t),
   gateOpacity: (t: number) => 1 - seg(t, 4.6, 5.6),
   fog: (t: number) => clamp((0.55 + 0.9 * Math.sin(Math.PI * seg(t, 2.6, 5.9))) * (1 - seg(t, 5.3, 6.4))),
   fogScale: (t: number) => 1 + push(t),
-  dim: (t: number) => 0.28 * (1 - seg(t, 3.0, 6.0)),
+  dim: (t: number) => 0.18 * (1 - seg(t, 3.0, 6.0)),
   vignette: (t: number) => 1 - seg(t, 5.0, 6.4),
 };
 // 반딧불이마다 깜빡이는 때를 다르게
@@ -58,21 +63,25 @@ const TWINKLE = [
   [0.3, 0.6, 0.95, 0.35, 0.3],
   [0.9, 0.4, 0.6, 0.2, 0.9],
 ];
+/** 문 앞에 다가선 정도 (홈 표지는 1 = 몇 걸음 뒤) */
+const APPROACH_SCALE = 1.1;
 const STEPS = Array.from({ length: Math.round(GATE_DURATION_SEC * 10) + 1 }, (_, i) => i / 10);
 
 type Props = {
   /** true가 되면 문이 열리기 시작 */
-  opening: boolean;
+  opening?: boolean;
+  /** 홈 표지처럼 움직이는 배경으로만 씀 (누르기·건너뛰기·다가가기 없음) */
+  cover?: boolean;
   reduceMotion: boolean;
   /** 문을 눌렀을 때 (첫 소리 안내가 떠 있지 않을 때만 받음) */
   onRequestOpen?: () => void;
   /** 숲에 도착(또는 건너뜀) */
-  onDone: () => void;
+  onDone?: () => void;
   /** 문 앞에서 보일 안내 문구 (소리 안내창이 떠 있으면 숨김) */
-  showTapHint: boolean;
+  showTapHint?: boolean;
 };
 
-export function ForestGate({ opening, reduceMotion, onRequestOpen, onDone, showTapHint }: Props) {
+export function ForestGate({ opening = false, cover = false, reduceMotion, onRequestOpen, onDone, showTapHint = false }: Props) {
   const [size, setSize] = useState({ w: 0, h: 0 });
   const t = useRef(new Animated.Value(0)).current;
   const overlay = useRef(new Animated.Value(1)).current;
@@ -84,8 +93,15 @@ export function ForestGate({ opening, reduceMotion, onRequestOpen, onDone, showT
   const finish = () => {
     if (finished.current) return;
     finished.current = true;
-    doneRef.current();
+    doneRef.current?.();
   };
+
+  // 홈 표지에서 넘어오면: 카메라가 문 앞으로 몇 걸음 다가감 (홈 표지와 같은 구도에서 시작)
+  const approach = useRef(new Animated.Value(cover ? 1 : reduceMotion ? APPROACH_SCALE : 1)).current;
+  useEffect(() => {
+    if (cover || reduceMotion) return;
+    Animated.timing(approach, { toValue: APPROACH_SCALE, duration: 1600, easing: Easing.inOut(Easing.cubic), useNativeDriver: native }).start();
+  }, [approach, cover, reduceMotion, native]);
 
   // 문 앞에서: 반딧불이 깜빡임·안개 흔들림
   useEffect(() => {
@@ -140,7 +156,10 @@ export function ForestGate({ opening, reduceMotion, onRequestOpen, onDone, showT
     <Animated.View
       style={[StyleSheet.absoluteFill, { opacity: overlay }]}
       onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-      accessibilityLabel="숲 입구. 「방해금지」 푯말이 걸린 낡은 나무 문"
+      accessibilityLabel={cover ? undefined : '숲 입구. 「방해금지」 푯말이 걸린 낡은 나무 문'}
+      accessibilityElementsHidden={cover}
+      importantForAccessibility={cover ? 'no-hide-descendants' : 'auto'}
+      pointerEvents={cover ? 'none' : 'auto'}
     >
       {k > 0 && (
         <>
@@ -163,7 +182,7 @@ export function ForestGate({ opening, reduceMotion, onRequestOpen, onDone, showT
           {/* 울타리·문: 카메라가 다가가면 커지며 지나감 */}
           <Animated.View
             pointerEvents="none"
-            style={[StyleSheet.absoluteFill, { opacity: v.gateOpacity, transformOrigin: origin, transform: [{ scale: v.scale as Animated.AnimatedInterpolation<number> }] }]}
+            style={[StyleSheet.absoluteFill, { opacity: v.gateOpacity, transformOrigin: origin, transform: [{ scale: Animated.multiply(approach, v.scale as Animated.AnimatedInterpolation<number>) }] }]}
           >
             <Image source={FRAME} style={{ position: 'absolute', left: ox, top: oy, width: SRC.w * k, height: SRC.h * k }} />
             <Animated.View
@@ -232,7 +251,7 @@ export function ForestGate({ opening, reduceMotion, onRequestOpen, onDone, showT
       )}
 
       {/* 문 앞: 화면 어디를 눌러도 문이 열림 */}
-      {!opening && (
+      {!opening && !cover && (
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onRequestOpen}
@@ -242,17 +261,15 @@ export function ForestGate({ opening, reduceMotion, onRequestOpen, onDone, showT
         >
           {showTapHint && (
             <View style={styles.bottom} pointerEvents="none">
-              <Text style={styles.tapHint}>문을 눌러 들어가기</Text>
+              <Text style={FOREST_TEXT.caption}>문을 눌러 들어가기</Text>
             </View>
           )}
         </Pressable>
       )}
 
-      {opening && !reduceMotion && (
+      {opening && !reduceMotion && !cover && (
         <View style={styles.bottom} pointerEvents="box-none">
-          <Pressable onPress={skip} accessibilityRole="button" style={({ pressed }) => [styles.skip, pressed && { opacity: 0.6 }]}>
-            <Text style={styles.skipText}>바로 들어가기</Text>
-          </Pressable>
+          <ForestButton label="바로 들어가기" size="sm" variant="glass" onPress={skip} />
         </View>
       )}
     </Animated.View>
@@ -270,7 +287,4 @@ const styles = StyleSheet.create({
     boxShadow: '0 0 8px 3px rgba(240, 236, 150, 0.55)',
   },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 44, alignItems: 'center' },
-  tapHint: { ...type.small, color: FOREST_UI.inkSoft, ...FOREST_UI.textShadow, letterSpacing: 0.5 },
-  skip: { minHeight: HIT, paddingHorizontal: 18, borderRadius: radius.pill, justifyContent: 'center', backgroundColor: 'rgba(10, 22, 24, 0.45)' },
-  skipText: { ...type.small, fontSize: 14, color: FOREST_UI.inkSoft },
 });
