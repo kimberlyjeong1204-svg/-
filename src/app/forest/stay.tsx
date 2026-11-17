@@ -1,97 +1,117 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForestSpace } from '../../components/forest/ForestSpace';
-import { FOREST_UI } from '../../components/forest/forestUi';
-import { FadeInText } from '../../components/FadeInText';
 import { FOREST_TEXT, ForestButton, ForestChoiceGroup } from '../../components/forest/ui';
-import { PauseIcon, PlayIcon } from '../../components/icons';
-import { useStayTimer } from '../../lib/useStayTimer';
-import { formatTime } from '../../lib/useSession';
-import { HIT, type } from '../../theme';
+import { WindChime } from '../../components/forest/WindChime';
+import { useReduceMotion } from '../../components/BreathCircle';
+import { leafRustle } from '../../audio/forestTouchSound';
 
 /**
- * 숲에 머물기
- * 기본은 시간 제한 없이 숲에 머무는 것입니다. 타이머는 선택(30초·1분·3분)이고 쉬는 중에도 바꿀 수 있습니다.
- * 시간이 다 되면 알람 없이 짧은 문구만 보이고, 숲으로 돌아갑니다. 숲소리와 날씨는 그대로 이어집니다.
+ * 숲에 머물기 — 세 가지 체험
+ *
+ * 아래의 작은 선택지에서 고르거나, 고르지 않고 그냥 머물러도 됩니다. 언제든 다른 체험으로 바꿀 수 있고
+ * 숲소리는 숲 공간이 맡고 있어 바꿔도 끊기지 않습니다(새로 재생하지 않음).
+ * - 가만히 있기: 숲의 움직임과 자연음 그대로. 타이머·점수·완료 문구 없음
+ * - 숲소리 듣기: 화면을 은은하게 어둡게. 소리가 꺼져 있거나 막혀 있으면 눌러서 켜도록 안내(자동 재생 우회 없음)
+ * - 풍경 흔들기: 나뭇가지에 매달린 나무 풍경을 건드리거나 끌어 흔듦
+ * 버튼과 안내는 약 5초 뒤 숨고, 화면을 누르면 다시 보입니다.
+ * (예전의 선택 타이머는 화면에서 뺐습니다. 코드는 src/lib/useStayTimer.ts에 남아 있습니다.)
  */
-const OPTIONS: { value: number | null; label: string }[] = [
-  { value: null, label: '없음' },
-  { value: 30, label: '30초' },
-  { value: 60, label: '1분' },
-  { value: 180, label: '3분' },
+type Mode = 'still' | 'listen' | 'chime';
+const MODES: { value: Mode; label: string }[] = [
+  { value: 'still', label: '가만히 있기' },
+  { value: 'listen', label: '숲소리 듣기' },
+  { value: 'chime', label: '풍경 흔들기' },
 ];
+const HIDE_DELAY = 5000;
 
 export default function ForestStay() {
-  const { uiOpacity, uiHidden } = useForestSpace();
-  const timer = useStayTimer();
-  // 남은 시간은 기본으로 숨김. 누르면 보이고, 다시 누르면 숨김
-  const [timeHidden, setTimeHidden] = useState(true);
+  const { uiOpacity, uiHidden, wakeUi, setHideDelay, touchForest, soundOn, setSoundOn, soundStatus, retrySound } = useForestSpace();
+  const { width } = useWindowDimensions();
+  const reduceMotion = useReduceMotion();
+  const [mode, setMode] = useState<Mode | null>(null);
 
-  const resetRef = useRef(timer.reset);
-  resetRef.current = timer.reset;
+  useFocusEffect(
+    useCallback(() => {
+      setHideDelay(HIDE_DELAY);
+      wakeUi();
+      return () => setHideDelay(4000);
+    }, [setHideDelay, wakeUi]),
+  );
+
+  // 숲소리 듣기: 화면을 천천히 어둡게
+  const dim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    if (timer.state !== 'done') return;
-    const t = setTimeout(() => {
-      resetRef.current();
-      router.dismissTo('/forest');
-    }, 3600);
-    return () => clearTimeout(t);
-  }, [timer.state]);
+    Animated.timing(dim, { toValue: mode === 'listen' ? 1 : 0, duration: 1800, useNativeDriver: true }).start();
+  }, [mode, dim]);
 
-  const active = timer.state === 'running' || timer.state === 'paused';
+  const choose = (m: Mode) => {
+    setMode(m);
+    wakeUi();
+  };
+
+  const audible = soundStatus === 'on';
+  const blocked = soundStatus === 'blocked';
+  const starting = soundStatus === 'starting';
+  const turnOn = () => (blocked ? retrySound() : setSoundOn(true));
 
   return (
-    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <View style={styles.topGap} />
-      <View style={styles.spacer}>
-        {timer.state === 'done' && (
-          <FadeInText style={FOREST_TEXT.closing} duration={1600}>
-            잠깐 머물렀어요.
-          </FadeInText>
-        )}
-      </View>
+    <View style={styles.root}>
+      {/* 숲 만지기는 여기서도 그대로 (풍경 흔들기 중에는 풍경 아래쪽만) */}
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={(e) => {
+          if (mode === 'listen') return;
+          touchForest(e.nativeEvent.pageX, e.nativeEvent.pageY);
+          if (soundOn) leafRustle((e.nativeEvent.pageX / width) * 2 - 1);
+        }}
+        accessible={false}
+      />
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.dim, { opacity: Animated.multiply(dim, 0.62) }]} />
 
-      {timer.state !== 'done' && (
-        <Animated.View style={[styles.bottom, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
-          {active && (
-            <View style={styles.timeRow}>
-              <Pressable
-                onPress={() => setTimeHidden(!timeHidden)}
-                accessibilityRole="button"
-                accessibilityLabel={timeHidden ? '남은 시간 보이기' : `남은 시간 ${formatTime(timer.remainingSec)}, 누르면 숨기기`}
-                style={styles.timeBtn}
-              >
-                <Text style={styles.time}>{timeHidden ? '· · ·' : formatTime(timer.remainingSec)}</Text>
-              </Pressable>
-              <ForestButton
-                size="icon"
-                onPress={timer.state === 'running' ? timer.pause : timer.resume}
-                accessibilityLabel={timer.state === 'running' ? '타이머 잠시 멈춤' : '타이머 다시 시작'}
-                icon={timer.state === 'running' ? <PauseIcon size={16} color={FOREST_UI.ink} /> : <PlayIcon size={16} color={FOREST_UI.ink} />}
-              />
+      {mode === 'chime' && (
+        <View style={styles.chimeWrap} pointerEvents="box-none">
+          <WindChime width={Math.min(width, 520)} soundOn={soundOn} reduceMotion={reduceMotion} />
+          {!soundOn && (
+            <Animated.Text style={[FOREST_TEXT.caption, { opacity: uiOpacity }]}>숲소리를 켜면 풍경 소리도 들려요.</Animated.Text>
+          )}
+        </View>
+      )}
+
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']} pointerEvents="box-none">
+        <View style={styles.center} pointerEvents="box-none">
+          {/* 숲소리 듣기: 소리가 꺼져 있거나 막혀 있으면 눌러서 켜기 (숨지 않음) */}
+          {mode === 'listen' && !audible && (
+            <View style={styles.listenCard}>
+              <Text style={FOREST_TEXT.cue}>{starting ? '숲소리를 켜고 있어요.' : blocked ? 'Safari가 숲소리를 잠시 멈췄어요.' : '숲소리가 꺼져 있어요.'}</Text>
+              {!starting && soundStatus !== 'held' && <ForestButton label={blocked ? '눌러서 숲소리 켜기' : '숲소리 켜기'} variant="primary" size="md" onPress={turnOn} />}
             </View>
           )}
-          <ForestChoiceGroup
-            label="타이머"
-            align="center"
-            options={OPTIONS.map((o) => ({ value: o.value ?? 0, label: o.label }))}
-            value={timer.seconds ?? 0}
-            onChange={(v) => timer.choose(v === 0 ? null : v)}
-          />
+        </View>
+
+        <Animated.View style={[styles.bottom, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
+          {mode === 'listen' && audible && (
+            <View style={styles.row}>
+              <ForestButton label="숲소리 끄기" size="sm" onPress={() => setSoundOn(false)} />
+              <ForestButton label="돌아가기" size="sm" variant="quiet" onPress={() => setMode(null)} accessibilityLabel="숲소리 듣기 그만하기" />
+            </View>
+          )}
+          <ForestChoiceGroup label="숲에 머물기" showLabel={false} align="center" options={MODES} value={mode} onChange={choose} />
         </Animated.View>
-      )}
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
-  topGap: { height: 56 },
-  spacer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  bottom: { alignItems: 'center', gap: 12, paddingBottom: 36, paddingHorizontal: 16 },
-  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  timeBtn: { minWidth: 110, minHeight: HIT, alignItems: 'center', justifyContent: 'center' },
-  time: { ...type.timer, fontSize: 24, color: FOREST_UI.inkSoft, ...FOREST_UI.textShadow },
+  safe: { flex: 1 },
+  dim: { backgroundColor: '#03080A' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  listenCard: { alignItems: 'center', gap: 14 },
+  chimeWrap: { position: 'absolute', top: 92, left: 0, right: 0, alignItems: 'center', gap: 6 },
+  bottom: { alignItems: 'center', gap: 12, paddingBottom: 28, paddingHorizontal: 12 },
+  row: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
 });

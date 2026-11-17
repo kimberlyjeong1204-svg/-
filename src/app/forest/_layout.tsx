@@ -36,7 +36,7 @@ export default function ForestLayout() {
 }
 
 function ForestShell() {
-  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch } = useForestSpace();
+  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch, reportSound } = useForestSpace();
   const raining = weather === 'rain';
   const pathname = usePathname();
   // 동굴 안: 숲 그림은 쉬고, 숲소리는 아주 작게(장작불 소리가 이어 받음), 비 소리는 멀어짐
@@ -88,6 +88,9 @@ function ForestShell() {
   // 문으로 들어올 때는 숲소리가 문이 열리는 동안 더 천천히(5초) 다가옴
   const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, playSettings, atGate ? 5000 : 2500, forestHold, caveRamp ? 3000 : 300);
   useForestRain(weather, soundOn && !inCave, breatheAudio, yieldedToMusic);
+  useEffect(() => {
+    reportSound(status, retry);
+  }, [status, retry, reportSound]);
   // 「켜짐」은 실제로 소리가 나는 것이 확인됐을 때만 보여 줍니다.
   const audible = status === 'on';
   const blocked = status === 'blocked';

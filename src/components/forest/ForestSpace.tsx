@@ -4,6 +4,7 @@ import { KEYS, isOneOf, usePersistentState } from '../../lib/storage';
 import { FOREST_MOTION } from './ui';
 import type { SessionPhase } from '../../lib/useSession';
 import type { SoundKey } from '../../audio/sounds';
+import type { ForestSoundStatus } from '../../audio/useForestAmbience';
 import { DEFAULT_SOUND_PREF, isSoundPref, type ForestSoundPref } from './soundPref';
 import { DEFAULT_FOREST_SCENE, FOREST_SCENES, FOREST_WEATHERS, type ForestSceneDef, type ForestWeather } from './forestScenes';
 
@@ -40,6 +41,11 @@ type ForestSpaceValue = {
   hideUi: () => void;
   /** 활동 중처럼 메뉴를 계속 보이게 하거나(false) 다시 자동으로 옅어지게(true) */
   setAutoHide: (on: boolean) => void;
+  /** 숲소리의 실제 상태(꺼짐·켜는 중·켜짐·재생 차단·잠시 쉼). 숲 레이아웃이 알려 줌 */
+  soundStatus: ForestSoundStatus;
+  reportSound: (status: ForestSoundStatus, retry: () => void) => void;
+  /** 재생이 막혔을 때 사용자가 누른 순간 다시 재생 */
+  retrySound: () => void;
   /** 화면마다 메뉴가 숨기까지의 시간(ms). 숲 첫 화면은 조금 길게 */
   setHideDelay: (ms: number) => void;
   /** 숲 그림을 만졌을 때(창 기준 좌표). 숲 장면이 잎 흔들림·반딧불이로 답함 */
@@ -82,6 +88,13 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
   const [autoHide, setAutoHide] = useState(true);
   const [hideDelay, setHideDelayState] = useState<number>(HIDE_AFTER_MS);
   const setHideDelay = useCallback((ms: number) => setHideDelayState(ms), []);
+  const [soundStatus, setSoundStatus] = useState<ForestSoundStatus>('off');
+  const retryRef = useRef<() => void>(() => {});
+  const reportSound = useCallback((status: ForestSoundStatus, retry: () => void) => {
+    retryRef.current = retry;
+    setSoundStatus(status);
+  }, []);
+  const retrySound = useCallback(() => retryRef.current(), []);
   const touchListener = useRef<((x: number, y: number) => void) | null>(null);
   const touchForest = useCallback((x: number, y: number) => touchListener.current?.(x, y), []);
   const onForestTouch = useCallback((fn: ((x: number, y: number) => void) | null) => {
@@ -132,6 +145,9 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
         uiHidden,
         wakeUi,
         hideUi,
+        soundStatus,
+        reportSound,
+        retrySound,
         setHideDelay,
         touchForest,
         onForestTouch,
