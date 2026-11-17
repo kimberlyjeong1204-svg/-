@@ -16,6 +16,24 @@ type W = Window & { dataLayer?: unknown[]; gtag?: (...args: unknown[]) => void; 
 let started = false;
 let lastPath: string | null = null;
 
+// 점검 모드: 주소에 ?ga_debug=1을 붙여 열면 화면 아래에 분석 상태가 작게 보이고, GA4 DebugView에도 표시됨
+let debug = false;
+let status: 'loading' | 'loaded' | 'blocked' = 'loading';
+let sent = 0;
+let lastSent = '';
+function showDebug() {
+  if (!debug) return;
+  let el = document.getElementById('shimpyo-ga-debug');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'shimpyo-ga-debug';
+    el.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.78);color:#fff;font:12px/1.4 -apple-system,sans-serif;pointer-events:none';
+    document.body.appendChild(el);
+  }
+  const label = status === 'loaded' ? '불러옴' : status === 'blocked' ? '차단됨(이 브라우저가 Google 분석을 막고 있어요)' : '불러오는 중';
+  el.textContent = `GA4 ${GA_ID} · 스크립트 ${label} · 보낸 이벤트 ${sent}개 · 마지막 ${lastSent} · ${window.location.hostname}`;
+}
+
 function enabled() {
   if (typeof window === 'undefined') return false;
   const w = window as W;
@@ -33,15 +51,32 @@ function gtag(...args: unknown[]) {
 
 /** 앱이 처음 열릴 때 한 번: gtag.js 불러오기 */
 export function initAnalytics() {
-  if (started || !enabled()) return;
+  if (typeof window !== 'undefined' && /[?&]ga_debug=1/.test(window.location.search)) debug = true;
+  if (started || !enabled()) {
+    if (debug && !enabled()) {
+      status = 'blocked';
+      lastSent = '운영 주소가 아니라 보내지 않음';
+      setTimeout(showDebug, 500);
+    }
+    return;
+  }
   started = true;
   (window as W).gtag = gtag;
   gtag('js', new Date());
-  gtag('config', GA_ID, { send_page_view: false });
+  gtag('config', GA_ID, debug ? { send_page_view: false, debug_mode: true } : { send_page_view: false });
   const s = document.createElement('script');
   s.async = true;
   s.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+  s.onload = () => {
+    status = 'loaded';
+    showDebug();
+  };
+  s.onerror = () => {
+    status = 'blocked';
+    showDebug();
+  };
   document.head.appendChild(s);
+  setTimeout(showDebug, 500);
 }
 
 /** 화면 주소가 바뀔 때(첫 화면 포함) */
@@ -56,6 +91,9 @@ export function trackPageView(path: string) {
     page_location: window.location.origin + clean,
     page_title: document.title,
   });
+  sent += 1;
+  lastSent = `page_view ${clean}`;
+  showDebug();
 }
 
 /** 보낼 수 있는 이벤트와 값(정해 둔 것만). 글자 입력은 받지 않음 */
@@ -72,4 +110,7 @@ export function trackEvent(e: AnalyticsEvent) {
     if (typeof v === 'number' || typeof v === 'boolean' || (typeof v === 'string' && /^[a-z_]{1,20}$/.test(v))) safe[k] = v;
   }
   gtag('event', name, safe);
+  sent += 1;
+  lastSent = name;
+  showDebug();
 }
