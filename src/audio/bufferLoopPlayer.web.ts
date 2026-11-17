@@ -60,6 +60,11 @@ export class BufferLoopPlayer {
     return this.isPlaying && this.segments.length > 0 && c != null && c.state === 'running';
   }
 
+  /** 지금 정해진 음량(0~1) */
+  get volume(): number {
+    return this.userVolume;
+  }
+
   setVolume(volume: number, rampMs = 300) {
     this.userVolume = Math.max(0, Math.min(1, volume));
     const c = existingContext();

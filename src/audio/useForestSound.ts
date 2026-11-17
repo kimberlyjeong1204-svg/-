@@ -118,5 +118,5 @@ export function useForestSound(phase: SessionPhase, active: boolean, settings: F
 // 자동 점검용: 브라우저 테스트에서 숲소리 상태를 읽을 수 있게 (화면·기능에는 영향 없음)
 if (typeof window !== 'undefined') {
   (window as unknown as { __shimpyoForest?: () => unknown }).__shimpyoForest = () =>
-    Object.fromEntries(FOREST_TRACK_ORDER.map((k) => [k, { key: forestPlayers[k].currentKey, playing: forestPlayers[k].isPlaying, sounding: forestPlayers[k].isSounding }]));
+    Object.fromEntries(FOREST_TRACK_ORDER.map((k) => [k, { key: forestPlayers[k].currentKey, playing: forestPlayers[k].isPlaying, sounding: forestPlayers[k].isSounding, volume: (forestPlayers[k] as unknown as { volume?: number }).volume }]));
 }
