@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { HomeCover } from '../components/HomeCover';
-import { shareForest } from '../lib/gift';
+import { GiftNote, useGiftShare } from '../components/GiftShare';
 import { FOREST_UI } from '../components/forest/forestUi';
 import { FOREST_TEXT, ForestButton } from '../components/forest/ui';
 import { GearIcon } from '../components/icons';
@@ -20,16 +19,7 @@ import { HIT, fonts, radius } from '../theme';
 export default function Home() {
   const { height } = useWindowDimensions();
   const compact = height < 700;
-  const [note, setNote] = useState<string | null>(null);
-  const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const gift = async () => {
-    const r = await shareForest();
-    const text = r === 'copied' ? '링크를 복사했어요. 보내고 싶은 곳에 붙여 넣어 주세요.' : r === 'failed' ? '링크를 만들지 못했어요. 잠시 뒤 다시 해 주세요.' : null;
-    if (!text) return;
-    setNote(text);
-    if (noteTimer.current) clearTimeout(noteTimer.current);
-    noteTimer.current = setTimeout(() => setNote(null), 3500);
-  };
+  const { gift, note } = useGiftShare();
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
@@ -72,13 +62,7 @@ export default function Home() {
           <Text style={styles.credit}>By 쥬쥬</Text>
         </View>
       </SafeAreaView>
-      {note && (
-        <View style={styles.noteWrap} pointerEvents="none">
-          <Text style={styles.note} accessibilityLiveRegion="polite">
-            {note}
-          </Text>
-        </View>
-      )}
+      <GiftNote note={note} />
     </View>
   );
 }
@@ -89,8 +73,6 @@ const styles = StyleSheet.create({
   topBar: { height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
   giftBtn: { minHeight: HIT, paddingHorizontal: 10, justifyContent: 'center' },
   giftText: { ...FOREST_TEXT.caption, fontSize: 13, color: FOREST_UI.inkSoft, opacity: 0.85 },
-  noteWrap: { position: 'absolute', left: 0, right: 0, top: 110, alignItems: 'center', paddingHorizontal: 24 },
-  note: { ...FOREST_TEXT.caption, fontSize: 14, color: FOREST_UI.ink, paddingHorizontal: 16, paddingVertical: 10, borderRadius: radius.pill, backgroundColor: 'rgba(10, 22, 24, 0.7)', overflow: 'hidden' },
   gear: { width: HIT, height: HIT, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.5 },
   titleBlock: { marginTop: '10%', alignItems: 'center', gap: 10 },
