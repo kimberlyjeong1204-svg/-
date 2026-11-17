@@ -7,6 +7,7 @@ import { FadeInText } from '../../components/FadeInText';
 import { BreathRing } from '../../components/forest/BreathRing';
 import { BreatheSettingsSheet } from '../../components/forest/BreatheSettingsSheet';
 import { FOREST_TEXT, ForestButton } from '../../components/forest/ui';
+import { GiftNote, useGiftShare } from '../../components/GiftShare';
 import { NO_BREATHE_AUDIO, useForestSpace } from '../../components/forest/ForestSpace';
 import { FOREST_UI } from '../../components/forest/forestUi';
 import { PauseIcon, PlayIcon } from '../../components/icons';
@@ -41,6 +42,7 @@ const isDuration = (v: unknown): v is number => v === 30 || v === 60 || v === 18
 
 export default function ForestBreathe() {
   const { uiOpacity, uiHidden, setAutoHide, wakeUi, setForestHold, setBreatheAudio } = useForestSpace();
+  const { gift, note } = useGiftShare();
   // 마지막으로 고른 시간을 기억 (다시 와도 그대로)
   const [durationSec, setDurationSec, durationReady] = usePersistentState<number>(KEYS.breathDuration, 60, isDuration);
   // 숲 메뉴·홈에서 「숨 고르기」를 누르면 한 번에 시작 (?start=1)
@@ -126,11 +128,11 @@ export default function ForestBreathe() {
       cueKeyRef.current = 'idle';
       setCue({ key: `idle-${rhythm.key}`, text: '' });
     } else if (phase === 'done') {
+      // 완료 화면에 머묾: 「숲 선물하기」 「숲에 더 머물기」 (저절로 넘어가지 않음)
       anim.fadeOut();
-      const t = setTimeout(backToForest, 3200);
-      return () => clearTimeout(t);
+      wakeUi();
     }
-  }, [phase, anim, rhythm]);
+  }, [phase, anim, rhythm, wakeUi]);
 
   const changeDuration = (sec: number) => {
     setDurationSec(sec);
@@ -180,6 +182,16 @@ export default function ForestBreathe() {
         </View>
       </View>
 
+      {done && (
+        <View style={styles.bottom}>
+          <View style={styles.doneRow}>
+            <ForestButton label="숲 선물하기" size="sm" variant="solid" onPress={gift} accessibilityHint="이 숲으로 오는 링크를 보내요. 보낸 뒤에도 이 화면에 있어요" />
+            <ForestButton label="숲에 더 머물기" size="sm" variant="solid" onPress={backToForest} />
+          </View>
+        </View>
+      )}
+      <GiftNote note={note} top={70} />
+
       {!done && (
         <Animated.View style={[styles.bottom, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
           {sound === 'myMusic' && active && <Text style={FOREST_TEXT.caption}>내 음악과 함께하는 동안 숲소리는 잠시 쉬어요.</Text>}
@@ -225,4 +237,5 @@ const styles = StyleSheet.create({
   controls: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   play: { width: HIT, height: HIT },
   time: { minWidth: 48 },
+  doneRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
 });

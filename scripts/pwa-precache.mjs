@@ -6,9 +6,9 @@ import { join, relative, sep } from 'node:path';
 
 const dist = 'dist';
 
-// 링크 미리보기: 절대 주소가 필요해 빌드 때 사이트 주소를 넣음 (Vercel 운영이면 운영 주소, 프리뷰면 프리뷰 주소)
-const host = process.env.VERCEL_ENV === 'production' ? process.env.VERCEL_PROJECT_PRODUCTION_URL : process.env.VERCEL_URL;
-const site = host ? `https://${host}` : '';
+// 링크 미리보기: 절대 주소가 필요해 빌드 때 운영 주소를 넣음. 선물 링크(src/lib/gift.ts)와 같은 주소
+// (프리뷰 주소는 Vercel 로그인 보호로 카톡이 그림을 못 가져올 수 있어 늘 운영 주소)
+const site = (process.env.EXPO_PUBLIC_WEB_URL || 'https://shimpyo-six.vercel.app').replace(/\/$/, '');
 const indexHtml = readFileSync(join(dist, 'index.html'), 'utf8').replaceAll('%SITE%', site);
 writeFileSync(join(dist, 'index.html'), indexHtml);
 // 숲 선물 링크(/gift) 미리보기: 같은 앱을 열되 제목·설명만 선물용으로 (그림은 같은 앱 아이콘 og-image.png)
