@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { forestPlayers, FOREST_TRACK_ORDER, type ForestSoundSettings } from './useForestSound';
 import { FOREST_TRACKS } from './sounds';
+import { existingContext } from './webAudio';
 import { addOtherAudioListener, isOtherAudioPlaying } from '../../modules/other-audio';
 
 /**
@@ -22,6 +23,9 @@ export type ForestSoundStatus = 'off' | 'starting' | 'on' | 'blocked' | 'held';
 export function useForestAmbience(soundOn: boolean, settings: ForestSoundSettings, fadeInMs = 2500, hold = false, volumeRampMs = 300) {
   const [appActive, setAppActive] = useState(AppState.currentState !== 'background');
   const [yielded, setYielded] = useState(false);
+  // 소리가 나야 하는데 어떤 이유로(화면 전환·아이폰 오디오 중단 등) 멈춰 있으면 다시 켜기 위한 신호
+  const [heal, setHeal] = useState(0);
+  const lastHeal = useRef(0);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
@@ -61,7 +65,8 @@ export function useForestAmbience(soundOn: boolean, settings: ForestSoundSetting
         if (!p.isPlaying) p.resume(Math.min(fadeInMs, 1500));
       }
     }
-  }, [soundOn, settings, appActive, yielded, fadeInMs, hold, volumeRampMs]);
+    // heal: 아래 점검에서 멈춘 재생기를 발견하면 다시 적용
+  }, [soundOn, settings, appActive, yielded, fadeInMs, hold, volumeRampMs, heal]);
 
   useEffect(
     () => () => {
@@ -81,9 +86,24 @@ export function useForestAmbience(soundOn: boolean, settings: ForestSoundSetting
       if (soundOn && hold) next = 'held';
       else if (!soundOn || yielded || !appActive) next = 'off';
       else if (wantedKeys.length === 0) next = 'on';
-      else if (wantedKeys.some((k) => forestPlayers[k].playbackBlocked)) next = 'blocked';
+      else if (wantedKeys.some((k) => !forestPlayers[k].isPlaying || forestPlayers[k].currentKey !== k)) {
+        // 켜져 있어야 하는데 재생기가 멈춰 있음 → 다시 켜기(2초에 한 번까지)
+        next = 'starting';
+        if (Date.now() - lastHeal.current > 2000) {
+          lastHeal.current = Date.now();
+          setHeal((h) => h + 1);
+        }
+      } else if (wantedKeys.some((k) => forestPlayers[k].playbackBlocked)) next = 'blocked';
       else if (wantedKeys.some((k) => forestPlayers[k].isSounding)) next = 'on';
-      else next = Date.now() - since > 4000 ? 'blocked' : 'starting';
+      else {
+        next = Date.now() - since > 4000 ? 'blocked' : 'starting';
+        // 오디오는 깨어 있는데 소리가 안 나면 재생기를 스스로 다시 시작(2초에 한 번까지)
+        const c = existingContext();
+        if (c?.state === 'running' && Date.now() - since > 1500 && Date.now() - lastHeal.current > 2000) {
+          lastHeal.current = Date.now();
+          for (const k of wantedKeys) forestPlayers[k].retry();
+        }
+      }
       setStatus(next);
     };
     check();
