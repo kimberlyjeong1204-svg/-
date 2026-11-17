@@ -138,6 +138,16 @@ export function DropIcon({ size = 24, color = colors.text }: P) {
   );
 }
 
+/** 비: 구름과 빗줄기 */
+export function RainIcon({ size = 22, color = colors.text }: P) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M7 14.5a4 4 0 0 1-.6-7.95A5.5 5.5 0 0 1 17 7.5a3.5 3.5 0 0 1 .5 7" />
+      <Path d="M9 17l-1 2.5M13 17l-1 2.5M17 17l-1 2.5" />
+    </Svg>
+  );
+}
+
 export function StretchIcon({ size = 24, color = colors.text }: P) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">

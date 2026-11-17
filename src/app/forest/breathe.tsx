@@ -7,13 +7,13 @@ import { FadeInText } from '../../components/FadeInText';
 import { BreathRing } from '../../components/forest/BreathRing';
 import { BreatheSettingsSheet } from '../../components/forest/BreatheSettingsSheet';
 import { FOREST_TEXT, ForestButton } from '../../components/forest/ui';
-import { useForestSpace } from '../../components/forest/ForestSpace';
+import { NO_BREATHE_AUDIO, useForestSpace } from '../../components/forest/ForestSpace';
 import { FOREST_UI } from '../../components/forest/forestUi';
 import { PauseIcon, PlayIcon } from '../../components/icons';
 import { RHYTHMS, breathFrame, type RhythmKey } from '../../lib/breath';
 import { formatTime, useSession } from '../../lib/useSession';
 import { KEYS, isOneOf, usePersistentState } from '../../lib/storage';
-import { useAmbience, useSoundChoice } from '../../audio/useAmbience';
+import { useSoundChoice } from '../../audio/useAmbience';
 import { HIT, type } from '../../theme';
 
 /**
@@ -38,7 +38,7 @@ function backToForest() {
 }
 
 export default function ForestBreathe() {
-  const { uiOpacity, uiHidden, setAutoHide, wakeUi, setForestHold } = useForestSpace();
+  const { uiOpacity, uiHidden, setAutoHide, wakeUi, setForestHold, setBreatheAudio } = useForestSpace();
   const [durationSec, setDurationSec] = useState(60);
   const [rhythmKey, setRhythmKey] = usePersistentState<RhythmKey>(KEYS.breathRhythm, 'base', isOneOf(['base', 'slow'] as const));
   const [sound, setSound] = useSoundChoice();
@@ -67,7 +67,11 @@ export default function ForestBreathe() {
   const session = useSession(durationSec, onFrame);
   const { phase } = session;
   const active = phase === 'running' || phase === 'paused';
-  const { yieldedToMusic } = useAmbience(phase, sound);
+  // 빗소리는 숲의 비 소리 채널이 Rain Mode와 함께 맞춰 재생 (비가 두 번 나지 않음)
+  useEffect(() => {
+    setBreatheAudio({ phase, sound });
+  }, [phase, sound, setBreatheAudio]);
+  useEffect(() => () => setBreatheAudio(NO_BREATHE_AUDIO), [setBreatheAudio]);
 
   // 진행 중에만 조작 버튼이 자동으로 숨음
   useEffect(() => {
@@ -156,11 +160,7 @@ export default function ForestBreathe() {
 
       {!done && (
         <Animated.View style={[styles.bottom, { opacity: uiOpacity }]} pointerEvents={uiHidden ? 'none' : 'box-none'}>
-          {(yieldedToMusic || (sound === 'myMusic' && active)) && (
-            <Text style={FOREST_TEXT.caption}>
-              {yieldedToMusic ? '다른 앱 음악이 재생 중이라 빗소리는 꺼 두었어요.' : '내 음악과 함께하는 동안 숲소리는 잠시 쉬어요.'}
-            </Text>
-          )}
+          {sound === 'myMusic' && active && <Text style={FOREST_TEXT.caption}>내 음악과 함께하는 동안 숲소리는 잠시 쉬어요.</Text>}
           <View style={styles.controls}>
             <ForestButton
               size="icon"

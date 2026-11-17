@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { Animated } from 'react-native';
 import { KEYS, isOneOf, usePersistentState } from '../../lib/storage';
 import { FOREST_MOTION } from './ui';
+import type { SessionPhase } from '../../lib/useSession';
+import type { SoundKey } from '../../audio/sounds';
 import { DEFAULT_SOUND_PREF, isSoundPref, type ForestSoundPref } from './soundPref';
 import { DEFAULT_FOREST_SCENE, FOREST_SCENES, FOREST_WEATHERS, type ForestSceneDef, type ForestWeather } from './forestScenes';
 
@@ -24,6 +26,9 @@ type ForestSpaceValue = {
   /** 숨 고르기에서 「내 음악과 함께」를 고른 동안 숲소리를 잠시 쉬게 함 (사용자의 켜짐 선택은 그대로) */
   forestHold: boolean;
   setForestHold: (hold: boolean) => void;
+  /** 숲 숨 고르기의 소리 상태: 숲의 비 소리 채널이 Rain Mode와 함께 맞춰 재생 */
+  breatheAudio: BreatheAudio;
+  setBreatheAudio: (a: BreatheAudio) => void;
   weather: ForestWeather;
   setWeather: (w: ForestWeather) => void;
   uiOpacity: Animated.Value;
@@ -36,6 +41,9 @@ type ForestSpaceValue = {
   /** 활동 중처럼 메뉴를 계속 보이게 하거나(false) 다시 자동으로 옅어지게(true) */
   setAutoHide: (on: boolean) => void;
 };
+
+export type BreatheAudio = { phase: SessionPhase; sound: SoundKey };
+export const NO_BREATHE_AUDIO: BreatheAudio = { phase: 'idle', sound: 'none' };
 
 const Ctx = createContext<ForestSpaceValue | null>(null);
 
@@ -62,6 +70,7 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
   );
   const needsSoundPrompt = prefReady && !pref.prompted;
   const [forestHold, setForestHold] = useState(false);
+  const [breatheAudio, setBreatheAudio] = useState<BreatheAudio>(NO_BREATHE_AUDIO);
   const [weather, setWeather] = usePersistentState<ForestWeather>(KEYS.forestWeather, 'clear', isOneOf(FOREST_WEATHERS));
   const uiOpacity = useRef(new Animated.Value(1)).current;
   const [autoHide, setAutoHide] = useState(true);
@@ -102,6 +111,8 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
         soundPrefReady: prefReady,
         forestHold,
         setForestHold,
+        breatheAudio,
+        setBreatheAudio,
         weather,
         setWeather,
         uiOpacity,

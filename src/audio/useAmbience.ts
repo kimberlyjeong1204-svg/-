@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { ambience, ambienceAlt } from './ambiencePlayer';
+import { driveRain, stopRain } from './rainChannel';
 import { SOUND_KEYS, isAmbience, type SoundKey } from './sounds';
 import { addOtherAudioListener, isOtherAudioPlaying } from '../../modules/other-audio';
 import { KEYS, isOneOf, usePersistentState } from '../lib/storage';
@@ -27,10 +27,7 @@ export function useSoundChoice() {
  *
  * @returns yieldedToMusic: 다른 앱 음악 때문에 빗소리를 꺼 둔 상태인지 (화면 안내용)
  */
-const RAIN_PLAYERS = [ambience, ambienceAlt] as const;
-
 export function useAmbience(phase: SessionPhase, sound: SoundKey) {
-  const current = useRef(0);
   const [yielded, setYielded] = useState(false);
   const [appActive, setAppActive] = useState(AppState.currentState !== 'background');
   const prevPhase = useRef<SessionPhase>(phase);
@@ -78,36 +75,15 @@ export function useAmbience(phase: SessionPhase, sound: SoundKey) {
     }
     if (yieldNow !== yielded) setYielded(yieldNow);
 
-    const player = RAIN_PLAYERS[current.current];
     if (!isAmbience(sound) || phase === 'idle' || phase === 'done') {
-      for (const p of RAIN_PLAYERS) p.fadeOutAndStop(phase === 'done' ? 3000 : 800);
+      driveRain({ key: null, playing: false, fadeOutMs: phase === 'done' ? 3000 : 800 });
       return;
     }
-    if (phase === 'paused' || yieldNow || !appActive) {
-      player.pause(!appActive ? 0 : yieldNow ? 1200 : 500);
-      return;
-    }
-    if (player.currentKey === sound) {
-      if (!player.isPlaying) player.resume(1200);
-    } else if (player.currentKey === 'none') {
-      void player.start(sound);
-    } else {
-      // 다른 비로 바꿈: 지금 비는 천천히 줄이고, 다른 재생기로 새 비를 천천히 키움
-      player.fadeOutAndStop(2000);
-      current.current = 1 - current.current;
-      const next = RAIN_PLAYERS[current.current];
-      if (next.currentKey === sound && next.isPlaying) return;
-      void next.start(sound);
-    }
+    driveRain({ key: sound, playing: !(phase === 'paused' || yieldNow || !appActive), pauseMs: !appActive ? 0 : yieldNow ? 1200 : 500 });
     // yielded는 위에서 계산해 반영하므로 의존성에 포함합니다.
   }, [phase, sound, yielded, appActive, inSession]);
 
-  useEffect(
-    () => () => {
-      for (const p of RAIN_PLAYERS) p.fadeOutAndStop(1500);
-    },
-    [],
-  );
+  useEffect(() => () => stopRain(1500), []);
 
   return { yieldedToMusic: yielded && isAmbience(sound) && inSession };
 }

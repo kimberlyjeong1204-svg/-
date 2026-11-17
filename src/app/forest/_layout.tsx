@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, Stack, ThemeProvider, router, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,9 +12,10 @@ import { ForestGate } from '../../components/forest/ForestGate';
 import { KEYS, isBoolean, usePersistentState } from '../../lib/storage';
 import { GATE_HINGE_SFX, GATE_HINGE_VOLUME } from '../../audio/sounds';
 import { playOnce } from '../../audio/sfx';
-import { BackIcon, SoundOffIcon, SoundOnIcon } from '../../components/icons';
+import { BackIcon, RainIcon, SoundOffIcon, SoundOnIcon } from '../../components/icons';
 import { useReduceMotion } from '../../components/BreathCircle';
 import { useForestAmbience } from '../../audio/useForestAmbience';
+import { useForestRain } from '../../audio/useForestRain';
 import { useForestSoundSettings } from '../../audio/useForestSound';
 import { goBack } from '../../lib/navigation';
 import { FOREST_UI } from '../../components/forest/forestUi';
@@ -35,9 +36,15 @@ export default function ForestLayout() {
 }
 
 function ForestShell() {
-  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold } = useForestSpace();
+  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio } = useForestSpace();
+  const raining = weather === 'rain';
   const reduceMotion = useReduceMotion();
   const [settings, setSettings] = useForestSoundSettings();
+  // 비가 오면 귀뚜라미·풀벌레를 절반쯤 낮춤(바람은 그대로). 비가 그치면 원래대로
+  const playSettings = useMemo(
+    () => (raining ? { ...settings, volume: { ...settings.volume, forestBugs: settings.volume.forestBugs * RAIN_BUGS_DUCK } } : settings),
+    [settings, raining],
+  );
 
   // 숲 입구: 처음 방문(또는 설정의 「숲 입구 다시 보기」) 때만. 다시 올 때는 숲으로 바로
   const [gateSeen, setGateSeen, gateReady] = usePersistentState<boolean>(KEYS.forestGateSeen, false, isBoolean);
@@ -63,7 +70,8 @@ function ForestShell() {
   }, [atGate, hideUi]);
 
   // 문으로 들어올 때는 숲소리가 문이 열리는 동안 더 천천히(5초) 다가옴
-  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, settings, atGate ? 5000 : 2500, forestHold);
+  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, playSettings, atGate ? 5000 : 2500, forestHold);
+  useForestRain(weather, soundOn, breatheAudio, yieldedToMusic);
   // 「켜짐」은 실제로 소리가 나는 것이 확인됐을 때만 보여 줍니다.
   const audible = status === 'on';
   const blocked = status === 'blocked';
@@ -95,6 +103,12 @@ function ForestShell() {
       hintShown.current = true;
       showHint('소리가 들리지 않으면 무음 모드를 확인해 주세요.');
     }
+  };
+
+  const toggleRain = () => {
+    const next = !raining;
+    setWeather(next ? 'rain' : 'clear');
+    showHint(next ? '비가 천천히 내려요.' : '비가 천천히 그쳐요.');
   };
 
   const onSoundPress = () => {
@@ -132,7 +146,7 @@ function ForestShell() {
       }}
     >
       <StatusBar style="light" />
-      <ForestScene reduceMotion={reduceMotion} />
+      <ForestScene reduceMotion={reduceMotion} rain={raining} />
 
       {/* 숲 안의 화면들은 배경이 투명해야 뒤의 숲이 보입니다(기본 테마의 회색 배경을 끔) */}
       <View style={StyleSheet.absoluteFill}>
@@ -160,6 +174,18 @@ function ForestShell() {
             </Pressable>
           </Animated.View>
           <View style={styles.right} pointerEvents="box-none">
+            {/* Rain Mode: 숲의 날씨. 숨 고르기·숲에 머물기 중에도 그대로, 기기에 저장 */}
+            <Animated.View style={{ opacity: uiOpacity }} pointerEvents={uiHidden ? 'none' : 'box-none'}>
+              <ForestButton
+                size="icon"
+                checked={raining}
+                variant={raining ? 'strong' : 'glass'}
+                onPress={toggleRain}
+                accessibilityLabel="비"
+                accessibilityHint={raining ? '누르면 비가 천천히 그쳐요' : '누르면 숲에 잔잔한 비가 내려요'}
+                icon={<RainIcon size={20} color={FOREST_UI.ink} />}
+              />
+            </Animated.View>
             <Animated.View style={{ opacity: soundPinned ? 1 : uiOpacity }} pointerEvents={!soundPinned && uiHidden ? 'none' : 'box-none'}>
               <ForestButton
                 onPress={onSoundPress}
@@ -219,6 +245,9 @@ function ForestShell() {
     </View>
   );
 }
+
+/** 비가 올 때 귀뚜라미·풀벌레 음량 비율 */
+const RAIN_BUGS_DUCK = 0.5;
 
 const FOREST_NAV_THEME = {
   ...DefaultTheme,

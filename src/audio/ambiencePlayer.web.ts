@@ -345,9 +345,51 @@ function seek(el: HTMLAudioElement, seconds: number) {
   });
 }
 
-export const ambience = new WebAmbiencePlayer();
-/** 쉬는 중에 비 종류를 바꿀 때 겹쳐 넘기기 위한 두 번째 재생기 (한 번에 하나만 들림) */
-export const ambienceAlt = new WebAmbiencePlayer();
+/**
+ * 빗소리 재생기 (웹): 음원 길이에 따라 재생 방식을 고릅니다.
+ * - 가벼운 비(96초, Rain Mode에서 오래 반복): Web Audio 버퍼 → 아이폰에서 반복 이음새가 끊기지 않음
+ * - 잔잔한 비(5분 이상, 숨 고르기 최대 3분이라 반복 없음): 오디오 요소 → 메모리를 적게 씀
+ */
+class RainPlayer {
+  private element = new WebAmbiencePlayer();
+  private buffer = new BufferLoopPlayer();
+  private active: WebAmbiencePlayer | BufferLoopPlayer | null = null;
+
+  get currentKey(): TrackKey | 'none' {
+    return this.active?.currentKey ?? 'none';
+  }
+
+  get isPlaying(): boolean {
+    return this.active?.isPlaying ?? false;
+  }
+
+  async start(key: SoundKey, fadeInMs = 1500) {
+    if (!isAmbience(key)) {
+      this.fadeOutAndStop(600);
+      return;
+    }
+    const next = key === 'lightRain' ? this.buffer : this.element;
+    if (this.active && this.active !== next) this.active.fadeOutAndStop(300);
+    this.active = next;
+    await next.playTrack(AMBIENCES[key], fadeInMs);
+  }
+
+  pause(fadeMs = 500) {
+    this.active?.pause(fadeMs);
+  }
+
+  resume(fadeInMs = 1000) {
+    this.active?.resume(fadeInMs);
+  }
+
+  fadeOutAndStop(fadeMs = 3000) {
+    this.active?.fadeOutAndStop(fadeMs);
+  }
+}
+
+export const ambience = new RainPlayer();
+/** 비 종류를 바꿀 때 겹쳐 넘기기 위한 두 번째 재생기 (한 번에 하나만 들림) */
+export const ambienceAlt = new RainPlayer();
 
 /**
  * 숲 소리처럼 여러 트랙을 동시에 쓸 때 새 재생기를 만듭니다 (네이티브와 같은 이름).
