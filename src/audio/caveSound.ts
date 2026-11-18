@@ -9,6 +9,7 @@ export function fireFlare() {}
 export function paperTear() {}
 export function logDrop() {}
 export function setCaveFireVolume(_v: number, _rampMs = 300) {}
+export function setCaveFireDuck(_d: number, _rampMs = 2500) {}
 export function pebbleHit(_pan = 0, _size = 1) {}
 export function caveFireActive() {
   return false;

@@ -22,6 +22,8 @@ let stopTimer: ReturnType<typeof setTimeout> | null = null;
 let intensity = 1;
 /** 장작불 음량(0~1, 환경음 설정). 동굴의 모든 소리(불·조약돌·종이·장작)에 함께 적용 */
 let fireVolume = 1;
+/** 재즈를 듣는 동안 장작 소리를 작게 남김(0~1) */
+let fireDuck = 1;
 let fireActive = false;
 let flareUntil = 0;
 
@@ -159,7 +161,7 @@ export function startCaveFire(fadeMs = 3000) {
   fireActive = true;
   master!.gain.cancelScheduledValues(now);
   master!.gain.setValueAtTime(master!.gain.value, now);
-  master!.gain.linearRampToValueAtTime(0.9 * fireVolume, now + fadeMs / 1000);
+  master!.gain.linearRampToValueAtTime(0.9 * fireVolume * fireDuck, now + fadeMs / 1000);
 }
 
 /** 환경음 설정의 장작불 음량 (0이면 동굴 소리 없음) */
@@ -170,7 +172,13 @@ export function setCaveFireVolume(v: number, rampMs = 300) {
   const now = c.currentTime;
   master.gain.cancelScheduledValues(now);
   master.gain.setValueAtTime(master.gain.value, now);
-  master.gain.linearRampToValueAtTime(0.9 * fireVolume, now + rampMs / 1000);
+  master.gain.linearRampToValueAtTime(0.9 * fireVolume * fireDuck, now + rampMs / 1000);
+}
+
+/** 재즈를 켜면 장작 소리를 작게(0.4), 끄면 원래대로 — 천천히 */
+export function setCaveFireDuck(d: number, rampMs = 2500) {
+  fireDuck = Math.max(0, Math.min(1, d));
+  setCaveFireVolume(fireVolume, rampMs);
 }
 
 /** 동굴을 나감: 천천히 줄이고 멈춤 */
@@ -289,7 +297,7 @@ export function caveFireActive() {
   return rumble != null && stopTimer == null;
 }
 
-if (typeof window !== 'undefined') (window as unknown as { __shimpyoCave?: () => unknown }).__shimpyoCave = () => ({ active: caveFireActive(), volume: fireVolume });
+if (typeof window !== 'undefined') (window as unknown as { __shimpyoCave?: () => unknown }).__shimpyoCave = () => ({ active: caveFireActive(), volume: fireVolume, duck: fireDuck });
 
 /** 화면 밖에서 계속 듣는 중이면 반복 타닥 소리를 켜고(타이머 타닥은 멈출 수 있음), 화면으로 돌아오면 끔 */
 function backgroundCrackle() {
