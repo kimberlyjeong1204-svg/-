@@ -8,13 +8,22 @@ import { Asset } from 'expo-asset';
  * - 동굴 전체(멀리)와 불 가까이 보기가 같은 영상·같은 색 보정을 써서 색온도가 같음
  * 영상은 소리 없음(장작 소리는 caveSound). 화면이 보이지 않으면 브라우저가 알아서 멈춤.
  */
-export const FIRE_CLIP = require('../../../assets/cave/fire-loop.mp4');
-/** 영상에서 불꽃 바닥(장작 위)이 있는 높이 비율과 가로 중심 — 그림 속 장작 자리에 맞출 때 기준 */
-export const CLIP_BASE = { x: 0.3, y: 0.78 };
+/**
+ * - far(동굴 전체·멀리): Mixkit 장작불(4초 반복)
+ * - close(불 가까이 보기): Pexels 검은 배경 모닥불(36초 반복, 소유자가 전달) — 검은 배경이라 어두운 불꽃 끝까지 살림
+ * base: 영상에서 불꽃 바닥(장작 위)의 가로·세로 비율, maskY: 가장자리 타원 중심 높이, cut: 이보다 어두우면 투명
+ */
+const CLIPS = {
+  far: { src: require('../../../assets/cave/fire-loop.mp4'), base: { x: 0.3, y: 0.78 }, maskY: 0.52, cut: 0.3, size: [320, 180], tint: [1, 1, 1] },
+  close: { src: require('../../../assets/cave/fire-close-loop.mp4'), base: { x: 0.53, y: 0.95 }, maskY: 0.6, cut: 0.16, size: [480, 270], tint: [1, 0.8, 0.52] },
+} as const;
+export type ClipKind = keyof typeof CLIPS;
 
-export function createFireClip() {
+export function createFireClip(kind: ClipKind = 'far') {
+  const cfg = CLIPS[kind];
+  const CLIP_BASE = cfg.base;
   const video = document.createElement('video');
-  video.src = Asset.fromModule(FIRE_CLIP).uri;
+  video.src = Asset.fromModule(cfg.src).uri;
   video.muted = true;
   video.loop = true;
   video.playsInline = true;
@@ -24,8 +33,8 @@ export function createFireClip() {
   video.preload = 'auto';
   void video.play().catch(() => {});
   const oc = document.createElement('canvas');
-  oc.width = 320;
-  oc.height = 180;
+  oc.width = cfg.size[0];
+  oc.height = cfg.size[1];
   const og = oc.getContext('2d', { willReadFrequently: true })!;
   const probe = document.createElement('canvas');
   probe.width = 24;
@@ -49,18 +58,22 @@ export function createFireClip() {
     og.drawImage(video, 0, 0, oc.width, oc.height);
     const img = og.getImageData(0, 0, oc.width, oc.height);
     const px = img.data;
-    const W = oc.width, H = oc.height, mx = W * CLIP_BASE.x, my = H * 0.52;
+    const tg = cfg.tint[1], tb = cfg.tint[2];
+    const W = oc.width, H = oc.height, mx = W * CLIP_BASE.x, my = H * cfg.maskY;
     for (let yy = 0; yy < H; yy++) {
-      const dy = (yy - my) / (H * 0.52);
+      const dy = (yy - my) / (H * Math.max(cfg.maskY, 1 - cfg.maskY));
       for (let xx = 0; xx < W; xx++) {
         const i = (yy * W + xx) * 4;
         const dx = (xx - mx) / (W * 0.5);
         const d = dx * dx + dy * dy;
         const edge = d >= 1 ? 0 : Math.min(1, (1 - d) / 0.45);
         const l = Math.max(px[i], px[i + 1], px[i + 2]) / 255;
-        let a = (l - 0.3) / 0.38;
+        let a = (l - cfg.cut) / 0.38;
         a = a <= 0 ? 0 : a >= 1 ? 1 : a * a * (3 - 2 * a);
         px[i + 3] = Math.round(255 * a * edge);
+        // 두 시점의 색온도를 맞춤(가까이 보기 영상은 하얀빛이 강해 따뜻하게)
+        px[i + 1] *= tg;
+        px[i + 2] *= tb;
       }
     }
     og.putImageData(img, 0, 0);

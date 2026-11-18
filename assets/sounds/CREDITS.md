@@ -62,4 +62,9 @@
 |---|---|---|
 | assets/cave/fire-loop.mp4 | Firewood burning in a campfire — https://mixkit.co/free-stock-video/firewood-burning-in-a-campfire-42768/ (720p, 5초) | 끝 1초를 처음과 겹쳐 4초 반복으로(이음새 없음), 960×540, 소리 없음 |
 
-불 가까이 보기 전용으로 요청한 Pexels 「a bonfire burning against black background」(https://www.pexels.com/video/a-bonfire-burning-against-black-background-5592479/)는 작업 환경에서 받을 수 없어 아직 넣지 못함. 받으면 같은 방식(fireClip)으로 교체.
+## 영상 (Pexels License)
+앱·웹 안 사용 무료, 출처 표기 의무 없음. 영상을 손대지 않은 채 그대로 판매·재배포하는 것은 금지. 라이선스: https://www.pexels.com/license/
+
+| 파일 | 원본 | 손본 것 |
+|---|---|---|
+| assets/cave/fire-close-loop.mp4 | A bonfire burning against black background — https://www.pexels.com/video/a-bonfire-burning-against-black-background-5592479/ (소유자가 내려받아 전달, 720p 37.5초) | 끝 1.5초를 처음과 겹쳐 36초 반복으로, 640×360, 소리 없음. 불 가까이 보기 전용(색은 동굴 전체 보기와 맞게 따뜻하게) |

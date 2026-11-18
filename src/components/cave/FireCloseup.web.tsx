@@ -51,7 +51,8 @@ export function FireCloseup({ reduceMotion, addLog, onLand }: Props) {
     const g = cv.getContext('2d');
     if (!g) return;
     const fire = createFire(3);
-    const clip = createFireClip();
+    // 불 가까이 보기: 검은 배경 실사 모닥불(멀리서 보는 동굴 화면과 같은 자리·비슷한 색)
+    const clip = createFireClip('close');
     let clipOn = false;
     let img: HTMLImageElement | null = null;
     const im = new Image();
@@ -152,7 +153,7 @@ export function FireCloseup({ reduceMotion, addLog, onLand }: Props) {
           g.globalAlpha = 1;
         }
         // 실사 불꽃(멀리서 보는 동굴 화면과 같은 영상·같은 색). 준비 전에는 코드 불꽃
-        clipOn = clip.draw(g, fx, fy + 6 * cr.k, 150 * cr.k * 1.15, power);
+        clipOn = clip.draw(g, fx, fy + 8 * cr.k, 280 * cr.k, power);
         fire.draw(g, fx, fy, u * 1.3, now, dt, power, reduce, !clipOn);
       } else {
         fire.drawLogs(g, added, fx, fy, u, now, power, reduce);
