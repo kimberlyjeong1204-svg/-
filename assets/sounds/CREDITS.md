@@ -54,3 +54,12 @@
 | jazz-trio-background-jazz.m4a | Background Jazz (재즈 트리오, 동굴 불멍) | https://pixabay.com/music/traditional-jazz-background-jazz-458928/ |
 | meditation-flute-drift.m4a | Drift (피리 명상, 숲 누워 쉬기) | https://pixabay.com/music/folk-drift-487061/ |
 | meditation-vocal-om-shanti.m4a | OM SHANTI (보컬 명상, 숲 누워 쉬기) | https://pixabay.com/music/meditationspiritual-om-shanti-5240/ |
+
+## 영상 (Mixkit Stock Video Free License)
+앱·웹 안 사용 무료, 출처 표기 의무 없음. 영상 자체를 따로 재배포·판매하는 것은 금지. 라이선스: https://mixkit.co/license/#videoFree
+
+| 파일 | 원본 | 손본 것 |
+|---|---|---|
+| assets/cave/fire-loop.mp4 | Firewood burning in a campfire — https://mixkit.co/free-stock-video/firewood-burning-in-a-campfire-42768/ (720p, 5초) | 끝 1초를 처음과 겹쳐 4초 반복으로(이음새 없음), 960×540, 소리 없음 |
+
+불 가까이 보기 전용으로 요청한 Pexels 「a bonfire burning against black background」(https://www.pexels.com/video/a-bonfire-burning-against-black-background-5592479/)는 작업 환경에서 받을 수 없어 아직 넣지 못함. 받으면 같은 방식(fireClip)으로 교체.
