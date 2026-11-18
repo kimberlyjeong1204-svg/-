@@ -41,7 +41,7 @@ export default function ForestLayout() {
 }
 
 function ForestShell() {
-  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch, reportSound, setUiSuppressed, runLeaveGuard, walkMood, keepAudio, setKeepAudio } = useForestSpace();
+  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch, reportSound, setUiSuppressed, runLeaveGuard, walkMood, keepAudio, setKeepAudio, restSound } = useForestSpace();
   const raining = weather === 'rain';
   const pathname = usePathname();
   // 동굴 안: 숲 그림은 쉬고, 숲소리는 아주 작게(장작불 소리가 이어 받음), 비 소리는 멀어짐
@@ -57,14 +57,15 @@ function ForestShell() {
   }, [inCave]);
   // 밤↔새벽을 바꾸면 귀뚜라미 소리도 천천히(3초) 바뀜
   const [moodRamp, setMoodRamp] = useState(false);
-  const prevMood = useRef(walkMood);
+  const prevMood = useRef(`${walkMood}|${restSound}`);
   useEffect(() => {
-    if (prevMood.current === walkMood) return;
-    prevMood.current = walkMood;
+    const cur = `${walkMood}|${restSound}`;
+    if (prevMood.current === cur) return;
+    prevMood.current = cur;
     setMoodRamp(true);
     const t = setTimeout(() => setMoodRamp(false), 3500);
     return () => clearTimeout(t);
-  }, [walkMood]);
+  }, [walkMood, restSound]);
   const reduceMotion = useReduceMotion();
   const [settings, setSettings] = useForestSoundSettings();
   // 동굴 환경음: 동굴 안에서 실제로 조절되는 소리는 장작불(숲소리는 동굴에서 아주 작게만 들림)
@@ -77,11 +78,14 @@ function ForestShell() {
     () => {
       // 새벽 숲길: 밤새 울던 귀뚜라미·풀벌레가 잦아듦(새소리는 거닐기 장소 소리가 맡음)
       const dawnWalk = walkMood === 'dawn';
-      const bugs = settings.volume.forestBugs * (raining ? RAIN_BUGS_DUCK : 1) * (inCave ? CAVE_DUCK : 1) * (dawnWalk ? DAWN_BUGS_DUCK : 1);
-      const wind = settings.volume.forestWind * (inCave ? CAVE_DUCK : 1);
-      return raining || inCave || dawnWalk ? { ...settings, volume: { ...settings.volume, forestBugs: bugs, forestWind: wind } } : settings;
+      // 돗자리에 누워 쉬는 동안: 계속 우는 풀벌레는 끄고(가끔만 가까이서 — restSound), 바람이 바탕. 명상음악이면 바람도 작게
+      const resting = restSound != null;
+      const music = restSound === 'flute' || restSound === 'vocal';
+      const bugs = settings.volume.forestBugs * (raining ? RAIN_BUGS_DUCK : 1) * (inCave ? CAVE_DUCK : 1) * (dawnWalk ? DAWN_BUGS_DUCK : 1) * (resting ? 0 : 1);
+      const wind = settings.volume.forestWind * (inCave ? CAVE_DUCK : 1) * (music ? REST_MUSIC_DUCK : 1);
+      return raining || inCave || dawnWalk || resting ? { ...settings, volume: { ...settings.volume, forestBugs: bugs, forestWind: wind } } : settings;
     },
-    [settings, raining, inCave, walkMood],
+    [settings, raining, inCave, walkMood, restSound],
   );
 
   // 숲 입구: 처음 방문(또는 설정의 「숲 입구 다시 보기」) 때만. 다시 올 때는 숲으로 바로
@@ -335,6 +339,7 @@ const RAIN_BUGS_DUCK = 0.5;
 /** 동굴 안에서 숲소리 음량 비율 (멀리서 아주 작게) */
 const CAVE_DUCK = 0.12;
 const DAWN_BUGS_DUCK = 0.25;
+const REST_MUSIC_DUCK = 0.2;
 
 type CaveFireSetting = { volume: number; muted: boolean };
 const isCaveFire = (v: unknown): v is CaveFireSetting =>

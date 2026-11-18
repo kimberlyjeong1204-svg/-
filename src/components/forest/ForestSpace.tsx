@@ -26,6 +26,9 @@ type ForestSpaceValue = {
   soundPrefReady: boolean;
   /** 숨 고르기에서 「내 음악과 함께」를 고른 동안 숲소리를 잠시 쉬게 함 (사용자의 켜짐 선택은 그대로) */
   forestHold: boolean;
+  /** 돗자리에 누워 쉬는 동안 고른 소리(누워 있지 않으면 null). 숲 기본 소리를 맞춤 */
+  restSound: RestSound | null;
+  setRestSound: (s: RestSound | null) => void;
   /** 「화면을 꺼도 계속 듣기」(숲·동굴 공통, 기기에 저장) */
   keepAudio: boolean;
   setKeepAudio: (on: boolean) => void;
@@ -66,6 +69,7 @@ type ForestSpaceValue = {
   runLeaveGuard: () => boolean;
 };
 
+export type RestSound = 'nature' | 'flute' | 'vocal';
 export type BreatheAudio = { phase: SessionPhase; sound: SoundKey };
 export const NO_BREATHE_AUDIO: BreatheAudio = { phase: 'idle', sound: 'none' };
 
@@ -94,6 +98,7 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
   );
   const needsSoundPrompt = prefReady && !pref.prompted;
   const [forestHold, setForestHold] = useState(false);
+  const [restSound, setRestSound] = useState<RestSound | null>(null);
   const [keepAudio, setKeepAudio] = usePersistentState<boolean>(KEYS.keepAudio, false, isBoolean);
   const [walkMood, setWalkMood] = useState<'night' | 'dawn' | null>(null);
   const [breatheAudio, setBreatheAudio] = useState<BreatheAudio>(NO_BREATHE_AUDIO);
@@ -169,6 +174,8 @@ export function ForestSpaceProvider({ children }: { children: ReactNode }) {
         setForestHold,
         keepAudio,
         setKeepAudio,
+        restSound,
+        setRestSound,
         walkMood,
         setWalkMood,
         breatheAudio,
