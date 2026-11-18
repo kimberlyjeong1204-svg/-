@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Asset } from 'expo-asset';
 import { CAVE_SPOT, FOREST, FOREST_IMAGE, coverView, forest, forestImages } from './forestConfig';
+import { gustAt, rainShelter } from './forestFx';
 
 /**
  * 숲속 휴식 공간 (웹앱)
@@ -200,12 +201,17 @@ export function ForestScene({ reduceMotion, rain = false, paused = false, regist
       const n = Math.round(DROP_COUNT * r);
       const slant = 0.06; // 아주 약한 바람
       fx.lineCap = 'round';
+      // 돗자리 위 넓은 가지가 비를 받아 줌: 그 아래(화면 좌표)로는 빗줄기·튀는 물이 없음
+      const sh = rainShelter();
+      const shA = sh ? toScreen(sh.u0, sh.vTop) : null;
+      const shB = sh ? toScreen(sh.u1, sh.vTop) : null;
+      const sheltered = (x: number, y: number) => !!(shA && shB && x * W > shA[0] && x * W < shB[0] && y * H > shA[1]);
       for (let i = 0; i < drops.length; i++) {
         const d = drops[i];
         d.y += dt * (0.55 + 1.05 * d.z);
         d.x += dt * slant * d.z;
-        if (d.y >= d.land) {
-          if (i < n && Math.random() < 0.55) splashes.push({ x: d.x, y: d.land, age: 0, size: 0.4 + d.z, leaf: d.z <= 0.7 });
+        if (d.y >= d.land || sheltered(d.x, d.y)) {
+          if (i < n && d.y >= d.land && !sheltered(d.x, d.land) && Math.random() < 0.55) splashes.push({ x: d.x, y: d.land, age: 0, size: 0.4 + d.z, leaf: d.z <= 0.7 });
           drops[i] = newDrop(true);
           continue;
         }
@@ -319,7 +325,8 @@ export function ForestScene({ reduceMotion, rain = false, paused = false, regist
         return;
       }
       gl.uniform1f(uni.t, t);
-      gl.uniform1f(uni.amp, reduce ? 0 : FOREST.leafSway);
+      // 돗자리 장면의 잔바람: 가까운 풀보다 0.5초 늦게 잎이 더 흔들렸다 잦아듦
+      gl.uniform1f(uni.amp, reduce ? 0 : FOREST.leafSway * (1 + 1.6 * gustAt(now, 0.5)));
       wetAmt += ((rainRef.current ? 1 : 0) - wetAmt) * Math.min(1, dt / 2.6); // 약 8초에 걸쳐 바뀜
       if (Math.abs((rainRef.current ? 1 : 0) - wetAmt) < 0.002) wetAmt = rainRef.current ? 1 : 0;
       gl.uniform1f(uni.wet, wetAmt);
