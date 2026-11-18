@@ -12,6 +12,7 @@ import { FOREST_TEXT, ForestButton } from '../../components/forest/ui';
 import { ForestGate } from '../../components/forest/ForestGate';
 import { KEYS, isBoolean, usePersistentState } from '../../lib/storage';
 import { setCaveFireVolume } from '../../audio/caveSound';
+import { setKeepPlaying, setMediaHandlers } from '../../audio/keepAudio';
 import { GATE_HINGE_SFX, GATE_HINGE_VOLUME } from '../../audio/sounds';
 import { playOnce } from '../../audio/sfx';
 import { BackIcon, RainIcon, SoundOffIcon, SoundOnIcon } from '../../components/icons';
@@ -40,7 +41,7 @@ export default function ForestLayout() {
 }
 
 function ForestShell() {
-  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch, reportSound, setUiSuppressed, runLeaveGuard, walkMood } = useForestSpace();
+  const { soundOn, setSoundOn, needsSoundPrompt, soundPrefReady, uiOpacity, uiHidden, wakeUi, hideUi, forestHold, weather, setWeather, breatheAudio, onForestTouch, reportSound, setUiSuppressed, runLeaveGuard, walkMood, keepAudio, setKeepAudio } = useForestSpace();
   const raining = weather === 'rain';
   const pathname = usePathname();
   // 동굴 안: 숲 그림은 쉬고, 숲소리는 아주 작게(장작불 소리가 이어 받음), 비 소리는 멀어짐
@@ -108,8 +109,18 @@ function ForestShell() {
   }, [atGate, gate, hideUi, setUiSuppressed]);
 
   // 문으로 들어올 때는 숲소리가 문이 열리는 동안 더 천천히(5초) 다가옴
-  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, playSettings, atGate ? 5000 : 2500, forestHold, caveRamp || moodRamp ? 3000 : 300);
-  useForestRain(weather, soundOn && !inCave, breatheAudio, yieldedToMusic);
+  const { yieldedToMusic, status, retry } = useForestAmbience(soundOn, playSettings, atGate ? 5000 : 2500, forestHold, caveRamp || moodRamp ? 3000 : 300, keepAudio && soundOn);
+  useForestRain(weather, soundOn && !inCave, breatheAudio, yieldedToMusic, keepAudio && soundOn);
+  // 「화면을 꺼도 계속 듣기」: 소리가 켜져 있을 때만. 잠금 화면의 멈춤/재생은 숲소리 끄기/켜기와 같음
+  useEffect(() => {
+    setKeepPlaying(keepAudio && soundOn);
+  }, [keepAudio, soundOn]);
+  useEffect(() => () => setKeepPlaying(false), []);
+  const changeSoundRef = useRef<(on: boolean) => void>(() => {});
+  useEffect(() => {
+    setMediaHandlers({ pause: () => changeSoundRef.current(false), play: () => changeSoundRef.current(true) });
+    return () => setMediaHandlers({});
+  }, []);
   useEffect(() => {
     reportSound(status, retry);
   }, [status, retry, reportSound]);
@@ -143,6 +154,13 @@ function ForestShell() {
       hintShown.current = true;
       showHint('소리가 들리지 않으면 무음 모드를 확인해 주세요.');
     }
+  };
+
+  changeSoundRef.current = (on: boolean) => changeSound(on);
+  // 누른 순간(화면 터치 중)에 바로 켜야 아이폰이 재생을 허락함
+  const onKeepAudio = (on: boolean) => {
+    setKeepAudio(on);
+    setKeepPlaying(on && soundOn);
   };
 
   const toggleRain = () => {
@@ -254,12 +272,16 @@ function ForestShell() {
                     onMasterChange={(on) => changeSound(on)}
                     trigger="settings"
                     title="동굴 소리"
+                    keepAudio={keepAudio}
+                    onKeepAudio={onKeepAudio}
                     tracks={[{ key: 'fire', label: '장작불', volume: caveFire.volume, muted: caveFire.muted }]}
                     onTrack={(_k, patch) => setCaveFire({ volume: patch.volume ?? caveFire.volume, muted: patch.muted ?? caveFire.muted })}
                     note="장작불 소리는 조약돌·종이·장작 넣기 소리와 함께 커지고 작아져요. 숲소리는 동굴 밖에서 조절해요. 위쪽 스피커를 끄면 모든 소리가 꺼져요."
                   />
                 ) : (
                   <ForestSoundButton value={settings} onChange={setSettings} masterOn={soundOn} onMasterChange={(on) => changeSound(on)} trigger="settings"
+                    keepAudio={keepAudio}
+                    onKeepAudio={onKeepAudio}
                     note="숲에 머무는 동안 계속 들려요. 위쪽 스피커를 끄면 숲소리·빗소리·걷는 소리·풍경·동굴 소리가 모두 꺼져요."
                   />
                 )}

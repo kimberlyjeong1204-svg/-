@@ -1,4 +1,4 @@
-import { getContext, setAmbientSession } from './webAudio';
+import { audioOut, getContext, keepPlaying, setAmbientSession } from './webAudio';
 
 /**
  * 동굴 소리 (웹) — 녹음 파일 없이 Web Audio로 만듦 (라이선스 걱정 없음, 바꾸기 쉬움)
@@ -14,6 +14,9 @@ let reverb: ConvolverNode | null = null;
 let reverbIn: GainNode | null = null;
 let noise: AudioBuffer | null = null;
 let rumble: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+// 화면 밖용 타닥 소리: 60초짜리를 미리 만들어 끝없이 반복(타이머 없이 오디오가 스스로 반복)
+let crackleLoop: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+let crackleBuf: AudioBuffer | null = null;
 let crackleTimer: ReturnType<typeof setInterval> | null = null;
 let stopTimer: ReturnType<typeof setTimeout> | null = null;
 let intensity = 1;
@@ -26,7 +29,7 @@ function setup(c: AudioContext) {
   if (master) return;
   master = c.createGain();
   master.gain.value = 0;
-  master.connect(c.destination);
+  master.connect(audioOut(c));
   // 백색 잡음 2초
   noise = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
   const d = noise.getChannelData(0);
@@ -74,6 +77,31 @@ function noiseBurst(c: AudioContext, at: number, dur: number, freq: number, q: n
   src.start(at, Math.random() * 1.5, dur + 0.05);
 }
 
+/** 60초 분량의 타닥 소리(무작위 간격·세기·높이의 짧은 딱 소리)를 버퍼로 만듦 */
+function makeCrackleBuffer(c: AudioContext) {
+  const len = c.sampleRate * 60;
+  const b = c.createBuffer(1, len, c.sampleRate);
+  const d = b.getChannelData(0);
+  let t = 0;
+  while (t < 59) {
+    t += 0.08 + Math.random() * 0.6 * (Math.random() < 0.2 ? 3 : 1);
+    const n = Math.random() < 0.25 ? 3 : 1;
+    for (let k = 0; k < n; k++) {
+      const start = Math.floor((t + k * (0.015 + Math.random() * 0.04)) * c.sampleRate);
+      const dur = Math.floor((0.004 + Math.random() * 0.025) * c.sampleRate);
+      const amp = 0.05 + Math.random() * 0.2;
+      let hp = 0, prev = 0;
+      for (let i = 0; i < dur && start + i < len; i++) {
+        const x = Math.random() * 2 - 1;
+        hp = 0.85 * (hp + x - prev); // 높은 소리만(딱)
+        prev = x;
+        d[start + i] += hp * amp * Math.exp((-5 * i) / dur);
+      }
+    }
+  }
+  return b;
+}
+
 function crackleTick() {
   const c = getContext();
   if (!c || c.state !== 'running') return;
@@ -112,6 +140,21 @@ export function startCaveFire(fadeMs = 3000) {
     rumble = { src, gain };
   }
   if (!crackleTimer) crackleTimer = setInterval(crackleTick, 60);
+  if (!crackleLoop && master && reverbIn) {
+    crackleBuf ??= makeCrackleBuffer(c);
+    const src = c.createBufferSource();
+    src.buffer = crackleBuf;
+    src.loop = true;
+    const gain = c.createGain();
+    gain.gain.value = backgroundCrackle() ? 1 : 0;
+    src.connect(gain);
+    gain.connect(master);
+    const w = c.createGain();
+    w.gain.value = 0.18;
+    gain.connect(w).connect(reverbIn);
+    src.start();
+    crackleLoop = { src, gain };
+  }
   const now = c.currentTime;
   fireActive = true;
   master!.gain.cancelScheduledValues(now);
@@ -146,10 +189,12 @@ export function stopCaveFire(fadeMs = 2500) {
     crackleTimer = null;
     try {
       rumble?.src.stop();
+      crackleLoop?.src.stop();
     } catch {
       // 이미 멈춤
     }
     rumble = null;
+    crackleLoop = null;
   }, fadeMs + 100);
 }
 
@@ -245,3 +290,15 @@ export function caveFireActive() {
 }
 
 if (typeof window !== 'undefined') (window as unknown as { __shimpyoCave?: () => unknown }).__shimpyoCave = () => ({ active: caveFireActive(), volume: fireVolume });
+
+/** 화면 밖에서 계속 듣는 중이면 반복 타닥 소리를 켜고(타이머 타닥은 멈출 수 있음), 화면으로 돌아오면 끔 */
+function backgroundCrackle() {
+  return keepPlaying() && typeof document !== 'undefined' && document.hidden;
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    const c = getContext();
+    if (!c || !crackleLoop) return;
+    crackleLoop.gain.gain.setTargetAtTime(backgroundCrackle() ? 1 : 0, c.currentTime, 0.3);
+  });
+}

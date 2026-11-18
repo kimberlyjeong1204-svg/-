@@ -1,6 +1,6 @@
 import { Asset } from 'expo-asset';
 import { BufferLoopPlayer } from './bufferLoopPlayer.web';
-import { getContext, loadBuffer } from './webAudio';
+import { getContext, loadBuffer, audioOut } from './webAudio';
 import { FOOTSTEPS, WALK_LOOPS } from './walkSounds';
 
 /**
@@ -74,7 +74,7 @@ function step(g: Ground) {
   src.playbackRate.value = 0.95 + Math.random() * 0.1;
   const gain = c.createGain();
   gain.gain.value = 0.45 + Math.random() * 0.15;
-  src.connect(gain).connect(c.destination);
+  src.connect(gain).connect(audioOut(c));
   src.onended = () => {
     src.disconnect();
     gain.disconnect();

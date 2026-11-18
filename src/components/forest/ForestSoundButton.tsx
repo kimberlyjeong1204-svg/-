@@ -24,12 +24,15 @@ type Props = {
   tracks?: Track[];
   onTrack?: (key: string, patch: { volume?: number; muted?: boolean }) => void;
   title?: string;
+  /** 「화면을 꺼도 계속 듣기」(숲·동굴 공통) */
+  keepAudio?: boolean;
+  onKeepAudio?: (on: boolean) => void;
 };
 
 export type Track = { key: string; label: string; volume: number; muted: boolean };
 
 /** 숲 화면 제목줄의 소리 아이콘과, 아래에서 올라오는 「숲 소리」 조절 창 */
-export function ForestSoundButton({ value, onChange, masterOn, onMasterChange, trigger = 'sound', note, tracks, onTrack, title = '숲 소리' }: Props) {
+export function ForestSoundButton({ value, onChange, masterOn, onMasterChange, trigger = 'sound', note, tracks, onTrack, title = '숲 소리', keepAudio, onKeepAudio }: Props) {
   const [open, setOpen] = useState(false);
   const on = masterOn ?? value.on;
   const setOn = (next: boolean) => (onMasterChange ? onMasterChange(next) : onChange({ ...value, on: next }));
@@ -61,6 +64,15 @@ export function ForestSoundButton({ value, onChange, masterOn, onMasterChange, t
           <Text style={styles.label}>소리 켜기</Text>
           <Toggle value={on} onChange={setOn} label="숲 소리 켜기" />
         </View>
+        {onKeepAudio && (
+          <View style={styles.keep}>
+            <View style={styles.row}>
+              <Text style={styles.label}>화면을 꺼도 계속 듣기</Text>
+              <Toggle value={!!keepAudio} onChange={onKeepAudio} label="화면을 꺼도 계속 듣기" />
+            </View>
+            <Text style={styles.note}>켜면 다른 앱을 쓰거나 화면을 잠가도 지금 소리가 이어져요. 이때는 무음 모드여도 소리가 나요. 숲과 동굴이 같은 설정을 써요.</Text>
+          </View>
+        )}
 
         <View style={[styles.tracks, !on && styles.off]} pointerEvents={on ? 'auto' : 'none'}>
           {list.map(({ key, label: name, volume, muted }) => {
@@ -110,6 +122,7 @@ const styles = StyleSheet.create({
   button: { width: HIT, height: HIT, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   row: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   tracks: { gap: 14 },
+  keep: { gap: 2, marginBottom: 10 },
   off: { opacity: 0.4 },
   track: { gap: 4 },
   trackHead: { flexDirection: 'row', justifyContent: 'space-between' },

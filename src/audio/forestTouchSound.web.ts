@@ -1,4 +1,4 @@
-import { getContext } from './webAudio';
+import { getContext, audioOut } from './webAudio';
 
 /** 숲을 만졌을 때 잎이 스치는 아주 작은 소리 (웹, 녹음 파일 없이 만듦). 소리를 켰을 때만 부름 */
 let noise: AudioBuffer | null = null;
@@ -32,6 +32,6 @@ export function leafRustle(pan = 0) {
     out = p;
   }
   src.connect(bp).connect(g);
-  out.connect(c.destination);
+  out.connect(audioOut(c));
   src.start(t0, Math.random() * 0.2, 0.75);
 }

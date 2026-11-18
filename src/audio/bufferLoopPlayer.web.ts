@@ -1,6 +1,6 @@
 import { Asset } from 'expo-asset';
 import type { Ambience, TrackKey } from './sounds';
-import { equalPowerIn, equalPowerOut, existingContext, getContext, loadBuffer, setAmbientSession, wakeContext } from './webAudio';
+import { equalPowerIn, equalPowerOut, existingContext, getContext, keepPlaying, loadBuffer, setAmbientSession, wakeContext, audioOut } from './webAudio';
 
 /**
  * 웹(PWA)용 끊김 없는 반복 재생기 — 숲 소리 전용
@@ -23,6 +23,7 @@ type LevelRamp = { from: number; to: number; t0: number; t1: number };
 const START_DELAY = 0.06;
 const LOOKAHEAD_SEC = 6;
 const SCHEDULER_MS = 500;
+const BACKGROUND_AHEAD_SEC = 30 * 60;
 
 export class BufferLoopPlayer {
   private track: Ambience | null = null;
@@ -96,7 +97,7 @@ export class BufferLoopPlayer {
 
     const out = c.createGain();
     out.gain.value = 0;
-    out.connect(c.destination);
+    out.connect(audioOut(c));
     this.out = out;
     this.level = { from: 0, to: 0, t0: c.currentTime, t1: c.currentTime };
 
@@ -225,6 +226,7 @@ export class BufferLoopPlayer {
   }
 
   private ensureScheduler() {
+    BufferLoopPlayer.all.add(this);
     if (this.scheduler) return;
     this.scheduler = setInterval(() => this.schedule(), SCHEDULER_MS);
     this.schedule();
@@ -235,11 +237,26 @@ export class BufferLoopPlayer {
     const c = existingContext();
     const track = this.track;
     if (!c || !track || this.paused || !this.buffer) return;
-    const last = this.segments[this.segments.length - 1];
-    if (!last) return;
-    const cf = Math.min(track.crossfade, (last.end - last.start) / 3);
-    const nextStart = last.end - cf;
-    if (nextStart - c.currentTime < LOOKAHEAD_SEC) this.addSegment(Math.max(nextStart, c.currentTime + 0.02), true);
+    // 「화면을 꺼도 계속 듣기」로 화면 밖에 있을 때는 타이머가 멈출 수 있어, 오디오 시계로 30분 앞까지 미리 예약
+    const ahead = keepPlaying() && typeof document !== 'undefined' && document.hidden ? BACKGROUND_AHEAD_SEC : LOOKAHEAD_SEC;
+    for (let guard = 0; guard < 400; guard++) {
+      const last = this.segments[this.segments.length - 1];
+      if (!last) return;
+      const cf = Math.min(track.crossfade, (last.end - last.start) / 3);
+      const nextStart = last.end - cf;
+      if (nextStart - c.currentTime >= ahead) return;
+      this.addSegment(Math.max(nextStart, c.currentTime + 0.02), true);
+    }
+  }
+
+  /** 화면을 벗어날 때 모든 재생기가 곧바로 멀리 예약 */
+  static scheduleAll() {
+    for (const p of BufferLoopPlayer.all) p.schedule();
+  }
+  private static all = new Set<BufferLoopPlayer>();
+  /** 예약된 구간 수(점검용) */
+  get scheduledCount() {
+    return this.segments.length;
   }
 
   /** 전체 음량 바꾸기 (0~1, 사용자 음량·트랙 보정은 자동 반영) */
@@ -292,6 +309,7 @@ export class BufferLoopPlayer {
     this.segments = [];
     if (this.scheduler) clearInterval(this.scheduler);
     this.scheduler = null;
+    BufferLoopPlayer.all.delete(this);
   }
 
   private releaseNow() {
@@ -309,4 +327,10 @@ export class BufferLoopPlayer {
     this.loadFailed = false;
     this.level = { from: 0, to: 0, t0: 0, t1: 0 };
   }
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && keepPlaying()) BufferLoopPlayer.scheduleAll();
+  });
 }

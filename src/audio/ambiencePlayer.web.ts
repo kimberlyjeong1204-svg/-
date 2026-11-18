@@ -1,7 +1,7 @@
 import { Asset } from 'expo-asset';
 import { AMBIENCES, isAmbience, type Ambience, type SoundKey, type TrackKey } from './sounds';
 import { BufferLoopPlayer } from './bufferLoopPlayer.web';
-import { equalPowerIn, equalPowerOut, existingContext, getContext, setAmbientSession } from './webAudio';
+import { equalPowerIn, equalPowerOut, existingContext, getContext, setAmbientSession, audioOut } from './webAudio';
 
 /**
  * 웹앱(PWA)용 환경음 재생기. 네이티브(ambiencePlayer.ts)와 같은 방식으로 동작합니다.
@@ -294,6 +294,8 @@ export class WebAmbiencePlayer {
 function makeVoice(uri: string, c: AudioContext | null): Voice {
   const el = new Audio();
   el.preload = 'auto';
+  // 화면 밖에서 겹쳐 넘기기 타이머가 멈춰도 끝에서 처음으로 이어지게(화면 안에서는 끝나기 전에 겹쳐 넘김)
+  el.loop = true;
   el.src = uri;
   (el as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
   let gain: GainNode | null = null;
@@ -302,7 +304,7 @@ function makeVoice(uri: string, c: AudioContext | null): Voice {
       const src = c.createMediaElementSource(el);
       gain = c.createGain();
       gain.gain.value = 0;
-      src.connect(gain).connect(c.destination);
+      src.connect(gain).connect(audioOut(c));
     } catch {
       gain = null;
     }

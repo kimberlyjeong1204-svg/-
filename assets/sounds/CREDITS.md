@@ -39,3 +39,6 @@
 ## 숲 거닐기 장소 소리·발소리 (assets/sounds/walk)
 - 출처: 쉼표 숲·동굴 통합 자산 v1 (프로젝트 소유자 제공, 패키지 제작 중 합성한 프로토타입 음원, 외부 녹음 미사용). 실제 자연 녹음으로 교체 예정
 - 변환: 22.05kHz 모노 WAV → AAC 64kbps(m4a)
+
+## 동굴 화면 밖 타닥 소리
+- 코드로 만든 60초 반복음(`src/audio/caveSound.web.ts`의 makeCrackleBuffer). 녹음 없음, 라이선스 걱정 없음
