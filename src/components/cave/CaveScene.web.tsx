@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Asset } from 'expo-asset';
 import { CAVE_IMAGE, CAVE_PAN, CHILD, FIRE, caveCover, easePan } from './caveConfig';
 import { createFire } from './fireRenderer';
+import { createFireClip } from './fireClip.web';
 
 /**
  * 동굴 화면 (웹앱) — 바위 그림 위에 장작불을 코드로 그립니다.
@@ -36,6 +37,9 @@ export function CaveScene({ reduceMotion, flare = 0, paused = false }: Props) {
     let W = 1, H = 1, dpr = 1, raf = 0, alive = true;
     let img: HTMLImageElement | null = null;
     const fire = createFire(3);
+    // 실사 모닥불(멀리서 작게): 그림 속 돌무더기·장작 위에
+    const clip = createFireClip();
+    let clipOn = false;
     let last = performance.now() / 1000;
 
     // 들어오면 넓은 동굴을 먼저 보여 주고 장작불 쪽으로 천천히 옮겨 감
@@ -75,7 +79,9 @@ export function CaveScene({ reduceMotion, flare = 0, paused = false }: Props) {
       const u = c.k * FIRE.scale * 2.2; // 불빛 범위 단위
       const flareAmt = Math.max(0, 1 - (now - flareAt.current) / 3.2);
       const power = 1 + 0.6 * flareAmt;
-      const glow = fire.level() * power;
+      // 불빛 일렁임: 실사 불꽃이 나오면 그 밝기를 따름
+      const flick = clipOn ? clip.level() : fire.level();
+      const glow = flick * power;
 
       fx.clearRect(0, 0, W, H);
       // 1) 바위를 비추는 따뜻한 불빛
@@ -98,13 +104,15 @@ export function CaveScene({ reduceMotion, flare = 0, paused = false }: Props) {
       const ch = c.toScreen(CHILD.x + CHILD.w * 0.25, CHILD.y);
       fx.globalCompositeOperation = 'lighter';
       g = fx.createRadialGradient(ch.x, ch.y, 0, ch.x, ch.y, CHILD.h * CAVE_IMAGE.height * c.k * 0.75);
-      g.addColorStop(0, `rgba(255,150,80,${0.16 * fire.level() * power})`);
+      g.addColorStop(0, `rgba(255,150,80,${0.16 * flick * power})`);
       g.addColorStop(1, 'rgba(255,120,60,0)');
       fx.fillStyle = g;
       fx.fillRect(0, 0, W, H);
 
       // 4) 살아 있는 불꽃 (그림의 멈춘 불꽃은 지운 사본을 씀)
-      fire.draw(fx, f.x, f.y, c.k * FIRE.scale, now, dt, power, reduce);
+      // 실사 불꽃(가로 약 150 그림 px). 영상이 아직 준비되지 않으면 코드 불꽃으로 대신
+      clipOn = clip.draw(fx, f.x, f.y + 6 * c.k, 150 * c.k, power);
+      fire.draw(fx, f.x, f.y, c.k * FIRE.scale, now, dt, power, reduce, !clipOn);
       fx.globalCompositeOperation = 'source-over';
     };
 
@@ -130,6 +138,7 @@ export function CaveScene({ reduceMotion, flare = 0, paused = false }: Props) {
     return () => {
       alive = false;
       cancelAnimationFrame(raf);
+      clip.dispose();
       ro.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
     };

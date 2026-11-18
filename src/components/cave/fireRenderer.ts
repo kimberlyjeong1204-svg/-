@@ -70,7 +70,8 @@ export function createFire(seed = 1) {
   /**
    * (fx, fy): 불꽃 바닥 가운데, u: 크기 단위(px). 불꽃 기본 폭 약 100u, 높이 약 180u
    */
-  function draw(g: CanvasRenderingContext2D, fx: number, fy: number, u: number, t: number, dt: number, power = 1, reduce = false) {
+  /** withTongues=false: 실사 불꽃 영상을 쓸 때 — 코드 불꽃은 그리지 않고 바닥 불빛·불티만 */
+  function draw(g: CanvasRenderingContext2D, fx: number, fy: number, u: number, t: number, dt: number, power = 1, reduce = false, withTongues = true) {
     const sp = reduce ? 0.35 : 1;
     const tt = t * sp;
     flick += (0.88 + 0.22 * glowNoise(tt * 2.1) + 0.06 * glowNoise(tt * 7.3 + 40) - flick) * Math.min(1, dt * 6);
@@ -88,7 +89,7 @@ export function createFire(seed = 1) {
     g.fillRect(fx - 160 * u, fy - 200 * u, 320 * u, 280 * u);
 
     // 불꽃 혀: 바깥(붉은 주황) → 안쪽(노랑) 두 겹
-    for (const layer of [0, 1]) {
+    for (const layer of withTongues ? [0, 1] : []) {
       for (const tg of tongues) {
         const nh = tg.noise(tt * tg.speed * 1.3 + tg.phase);
         const nw = tg.noise(tt * tg.speed * 0.9 + 50 + tg.phase);

@@ -54,3 +54,17 @@
 | jazz-trio-background-jazz.m4a | Background Jazz (재즈 트리오, 동굴 불멍) | https://pixabay.com/music/traditional-jazz-background-jazz-458928/ |
 | meditation-flute-drift.m4a | Drift (피리 명상, 숲 누워 쉬기) | https://pixabay.com/music/folk-drift-487061/ |
 | meditation-vocal-om-shanti.m4a | OM SHANTI (보컬 명상, 숲 누워 쉬기) | https://pixabay.com/music/meditationspiritual-om-shanti-5240/ |
+
+## 영상 (Mixkit Stock Video Free License)
+앱·웹 안 사용 무료, 출처 표기 의무 없음. 영상 자체를 따로 재배포·판매하는 것은 금지. 라이선스: https://mixkit.co/license/#videoFree
+
+| 파일 | 원본 | 손본 것 |
+|---|---|---|
+| assets/cave/fire-loop.mp4 | Firewood burning in a campfire — https://mixkit.co/free-stock-video/firewood-burning-in-a-campfire-42768/ (720p, 5초) | 끝 1초를 처음과 겹쳐 4초 반복으로(이음새 없음), 960×540, 소리 없음 |
+
+## 영상 (Pexels License)
+앱·웹 안 사용 무료, 출처 표기 의무 없음. 영상을 손대지 않은 채 그대로 판매·재배포하는 것은 금지. 라이선스: https://www.pexels.com/license/
+
+| 파일 | 원본 | 손본 것 |
+|---|---|---|
+| assets/cave/fire-close-loop.mp4 | A bonfire burning against black background — https://www.pexels.com/video/a-bonfire-burning-against-black-background-5592479/ (소유자가 내려받아 전달, 720p 37.5초) | 끝 1.5초를 처음과 겹쳐 36초 반복으로, 640×360, 소리 없음. 불 가까이 보기 전용(색은 동굴 전체 보기와 맞게 따뜻하게) |

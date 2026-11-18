@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Asset } from 'expo-asset';
 import { CAVE_IMAGE, CHILD, FIRE, FIRE_VIDEO } from './caveConfig';
 import { createFire, type Log } from './fireRenderer';
+import { createFireClip } from './fireClip.web';
 
 /**
  * 불 가까이 보기(불멍) — 웹
@@ -50,6 +51,9 @@ export function FireCloseup({ reduceMotion, addLog, onLand }: Props) {
     const g = cv.getContext('2d');
     if (!g) return;
     const fire = createFire(3);
+    // 불 가까이 보기: 검은 배경 실사 모닥불(멀리서 보는 동굴 화면과 같은 자리·비슷한 색)
+    const clip = createFireClip('close');
+    let clipOn = false;
     let img: HTMLImageElement | null = null;
     const im = new Image();
     im.onload = () => {
@@ -118,7 +122,7 @@ export function FireCloseup({ reduceMotion, addLog, onLand }: Props) {
           g.drawImage(img, cr.left, cr.top, cr.cw, cr.ch, 0, 0, W, H);
         }
         // 불빛: 바위·바닥·아이 쪽으로 일렁이며 비침 (동굴 화면과 같은 방식)
-        const L = fire.level() * power;
+        const L = (clipOn ? clip.level() : fire.level()) * power;
         g.globalCompositeOperation = 'lighter';
         let gr = g.createRadialGradient(fx, fy - 60 * u, 0, fx, fy - 60 * u, 700 * u * (0.9 + 0.12 * L));
         gr.addColorStop(0, `rgba(255,150,70,${0.3 * L})`);
@@ -148,7 +152,9 @@ export function FireCloseup({ reduceMotion, addLog, onLand }: Props) {
           fire.drawLogs(g, [a], fx, fy, u, now, power, reduce);
           g.globalAlpha = 1;
         }
-        fire.draw(g, fx, fy, u * 1.3, now, dt, power, reduce); // 가까이 보니 조금 크게
+        // 실사 불꽃(멀리서 보는 동굴 화면과 같은 영상·같은 색). 준비 전에는 코드 불꽃
+        clipOn = clip.draw(g, fx, fy + 8 * cr.k, 280 * cr.k, power);
+        fire.draw(g, fx, fy, u * 1.3, now, dt, power, reduce, !clipOn);
       } else {
         fire.drawLogs(g, added, fx, fy, u, now, power, reduce);
       }
@@ -194,6 +200,7 @@ export function FireCloseup({ reduceMotion, addLog, onLand }: Props) {
     return () => {
       alive = false;
       cancelAnimationFrame(raf);
+      clip.dispose();
       ro.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
       delete w.__shimpyoCloseup;
