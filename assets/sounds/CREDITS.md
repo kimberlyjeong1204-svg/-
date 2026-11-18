@@ -42,3 +42,15 @@
 
 ## 동굴 화면 밖 타닥 소리
 - 코드로 만든 60초 반복음(`src/audio/caveSound.web.ts`의 makeCrackleBuffer). 녹음 없음, 라이선스 걱정 없음
+
+## 음악 (Pixabay Content License)
+앱 안 사용·상업 사용 무료, 출처 표기 의무 없음(기록용으로 남김). 음원만 따로 재배포하거나 그대로 판매하는 것은 금지.
+라이선스: https://pixabay.com/service/license-summary/
+소유자가 Pixabay에서 내려받아 전달한 mp3를 m4a(AAC 128kbps)로 변환해 넣음(`assets/sounds/music/`).
+
+| 파일 | 곡 | 원본 |
+|---|---|---|
+| jazz-piano-draw-me-a-night.m4a | Draw me a night (피아노 재즈, 동굴 불멍) | https://pixabay.com/music/traditional-jazz-draw-me-a-night-jazz-piano-218343/ |
+| jazz-trio-background-jazz.m4a | Background Jazz (재즈 트리오, 동굴 불멍) | https://pixabay.com/music/traditional-jazz-background-jazz-458928/ |
+| meditation-flute-drift.m4a | Drift (피리 명상, 숲 누워 쉬기) | https://pixabay.com/music/folk-drift-487061/ |
+| meditation-vocal-om-shanti.m4a | OM SHANTI (보컬 명상, 숲 누워 쉬기) | https://pixabay.com/music/meditationspiritual-om-shanti-5240/ |

@@ -11,7 +11,10 @@ import { fireOnScreen } from '../../components/cave/caveConfig';
 import { useForestSpace } from '../../components/forest/ForestSpace';
 import { ForestButton } from '../../components/forest/ui';
 import { useReduceMotion } from '../../components/BreathCircle';
-import { logDrop, startCaveFire, stopCaveFire } from '../../audio/caveSound';
+import { logDrop, setCaveFireDuck, startCaveFire, stopCaveFire } from '../../audio/caveSound';
+import { currentMusic, playMusic, stopMusic } from '../../audio/musicPlayer';
+import { MUSIC, type MusicKey } from '../../audio/music';
+import { ForestSheet } from '../../components/forest/ui';
 import { goHome } from '../../lib/navigation';
 import { radius, type } from '../../theme';
 import { FOREST_UI } from '../../components/forest/forestUi';
@@ -48,6 +51,35 @@ export default function Cave() {
     else stopCaveFire(1500);
   }, [fireOn]);
   useEffect(() => () => stopCaveFire(2500), []);
+
+  // 불멍 재즈: 기본은 장작 소리만. 고른 곡은 동굴 전체 보기로 가도 같은 위치에서 이어짐(같은 화면이라 그대로)
+  const [jazz, setJazz] = useState<MusicKey | null>(null);
+  const [jazzOpen, setJazzOpen] = useState(false);
+  const chooseJazz = (k: MusicKey | null) => {
+    setJazz(k);
+    setJazzOpen(false);
+    // 누른 순간에 재생해야 아이폰이 허락함. 소리를 꺼 두었으면 고른 것만 기억하고 조용히
+    if (k && fireOn) playMusic(k);
+    else stopMusic();
+    wakeUi();
+  };
+  useEffect(() => {
+    if (jazz && fireOn) {
+      if (currentMusic() !== jazz) playMusic(jazz);
+      setCaveFireDuck(0.4);
+    } else {
+      stopMusic(fireOn ? 2500 : 800);
+      setCaveFireDuck(1);
+    }
+  }, [jazz, fireOn]);
+  // 동굴을 나가면 재즈는 숲소리와 겹치지 않게 먼저 줄어듦
+  useEffect(
+    () => () => {
+      stopMusic(1200);
+      setCaveFireDuck(1, 300);
+    },
+    [],
+  );
 
   // 글을 쓰는 동안에는 버튼이 숨지 않음
   useEffect(() => {
@@ -180,12 +212,14 @@ export default function Cave() {
             {close ? (
               <View style={styles.row}>
                 <ForestButton label="장작 더 넣기" size="sm" variant="solid" onPress={addLog} disabled={logBusy} />
+                <ForestButton label={jazz ? `♫ ${MUSIC[jazz].label}` : '♫ 재즈 듣기'} size="sm" variant="solid" onPress={() => setJazzOpen(true)} />
                 <ForestButton label="동굴 전체 보기" size="sm" variant="solid" onPress={closeClose} />
                 <StayTimerMenu />
               </View>
             ) : activity === 'stay' ? (
               <View style={styles.row}>
                 <ForestButton label="불 가까이 보기" size="sm" variant="solid" onPress={openClose} />
+                {jazz && <ForestButton label={`♫ ${MUSIC[jazz].label}`} size="sm" variant="solid" onPress={() => setJazzOpen(true)} />}
                 <ForestButton label="마음에 걸린 것 내려놓기" size="sm" variant="solid" onPress={() => setActivity('letgo')} />
                 <ForestButton label="조약돌 던지기" size="sm" variant="solid" onPress={() => setActivity('pebble')} />
                 <StayTimerMenu />
@@ -197,6 +231,16 @@ export default function Cave() {
           </Animated.View>
         )}
       </SafeAreaView>
+
+      <ForestSheet open={jazzOpen} onClose={() => setJazzOpen(false)} title="불멍 음악" closeLabel="불멍 음악 닫기">
+        <View style={styles.col}>
+          <ForestButton label="장작 소리만" variant={jazz == null ? 'primary' : 'solid'} size="md" onPress={() => chooseJazz(null)} accessibilityLabel={`장작 소리만${jazz == null ? ', 선택됨' : ''}`} />
+          {(['jazzPiano', 'jazzTrio'] as MusicKey[]).map((k) => (
+            <ForestButton key={k} label={`${MUSIC[k].label} · ${MUSIC[k].title}`} variant={jazz === k ? 'primary' : 'solid'} size="md" onPress={() => chooseJazz(k)} accessibilityLabel={`${MUSIC[k].label} ${MUSIC[k].title}${jazz === k ? ', 선택됨' : ''}`} />
+          ))}
+          <Text style={styles.sheetNote}>{fireOn ? '재즈를 들어도 장작 소리는 작게 남아요.' : '소리가 꺼져 있어요. 위쪽 스피커로 소리를 켜면 들려요.'}</Text>
+        </View>
+      </ForestSheet>
 
       {exitOpen && (
         <View style={styles.askWrap} pointerEvents="box-none">
@@ -235,6 +279,7 @@ const styles = StyleSheet.create({
   bottom: { alignItems: 'center', paddingBottom: 30, paddingHorizontal: 16 },
   row: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
   col: { alignSelf: 'stretch', gap: 10 },
+  sheetNote: { ...type.caption, color: FOREST_UI.inkSoft, textAlign: 'center' },
   fireSpot: { position: 'absolute', width: 120, height: 130, borderRadius: 60 },
   askWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   askCard: { width: '100%', maxWidth: 320, padding: 22, gap: 16, borderRadius: radius.lg, backgroundColor: 'rgba(14, 18, 20, 0.86)', alignItems: 'center' },
